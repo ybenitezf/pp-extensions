@@ -18,8 +18,10 @@ cd pp-extensions
 Next, put the module into the drop-in folder. Follow playbook 1 of the skill `.agents/skills/extension-dropin/SKILL.md`.
 The skill copies the module file into `/data/extensions`. Do not make a link.
 
-Then open Menu → Extensions in Pi Pocket, find the module in the group **Yours**, and turn it on. A new module is always
-off, and only the owner of the Pi Pocket can turn it on.
+Then open Menu → Extensions in Pi Pocket, and find the module in the group **Yours**. A module that the owner never
+turned on is off, and only the owner of the Pi Pocket can turn it on. A module that went in before under the same name
+comes back with its earlier choice, so it can already be on. Pi Pocket loads a new copy by itself, about 300 ms after
+the copy, while the module is on.
 
 ## Add an extension
 

@@ -41,9 +41,10 @@ After you change a module in this repository, do Playbook 1 again. A change reac
 
 ## 4. Turn the module on
 
-Open Menu → Extensions in Pi Pocket. Your module is in the group **Yours**, and it is off. Turn it on. Pi Pocket loads
-the module and shows it in the sheet, with its description, its tools, and its routes. When the load fails, the sheet
-shows the error.
+Open Menu → Extensions in Pi Pocket. Your module is in the group **Yours**. A module whose file name the owner never
+turned on is off, and a module that went in before under the same name comes back with its earlier choice, so it can
+already be on. Only the owner turns it on. Pi Pocket loads the module and shows it in the sheet, with its description,
+its tools, and its routes. When the load fails, the sheet shows the error.
 
 ## 5. Check the module
 
