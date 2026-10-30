@@ -21,8 +21,9 @@ This file has 2 playbooks. They do not depend on each other. Read only the one t
 - Pi Pocket watches `/data/extensions` and it does not watch the folders below it. A write to
   `/data/extensions/<name>/index.js` alone gives no event. A write to a top-level entry gives 1 event. Thus a copy of the
   module file is what makes Pi Pocket load the new code.
-- A drop-in starts **off**. The on/off state is keyed to the file name. A module that goes in again under the same name
-  keeps its earlier choice. Only the owner turns a module on, in Menu → Extensions.
+- A drop-in is **off** only when Pi Pocket holds no earlier choice for its file name. The on/off state is keyed to the
+  file name, and Pi Pocket keeps it in `/data/config.json`. A module that goes in again under the same name comes back
+  with its earlier choice, so it can already be **on**. Only the owner turns a module on or off, in Menu → Extensions.
 - `web.client` may not be a symbolic link. Pi Pocket refuses a browser part that is a link. A copy is always a regular
   file or a regular folder.
 
@@ -85,8 +86,10 @@ the old file.
    files.
 7. **Confirm the copy.** Run the ownership test again. It must exit 0. Use `ls -l /data/extensions/<name>.ts` and
    `ls -l /data/extensions/<name>/` to confirm that each entry is a regular file or a regular folder and not a link.
-8. **Tell the person 2 facts.** First, the module is copied in and it starts **off**. Second, the next step is theirs: the
-   owner turns the module on in Menu → Extensions. Do not say that the module runs. Do not wait for it to run.
+8. **Tell the person 2 facts.** First, the module is copied in, and it gets the earlier on/off choice of its file name: a
+   name with no earlier choice is **off**, and a module that the owner turned on before can be **on**. Second, the choice
+   is the owner's: the owner turns the module on, or confirms that it is on, in Menu → Extensions. Do not say that the
+   module runs. Do not wait for it to run.
 
 After an edit in this repository, repeat this playbook. An edit reaches the server only when the module is copied again.
 There is no watcher by design.
@@ -94,7 +97,8 @@ There is no watcher by design.
 ## Playbook 2: Uninstall a module
 
 This playbook removes the module that the install playbook copied, and nothing else. It puts the drop-in folder back to
-the state that it had before the install.
+the state that it had before the install. It does not change the on/off choice, which Pi Pocket keeps in
+`/data/config.json`.
 
 1. **Name the module.** Set `<name>` to the module's folder name in `extensions/`. Confirm that
    `extensions/<name>/<name>.ts` exists. When this repository does not hold the module, stop: the module is not ours.
@@ -107,7 +111,8 @@ the state that it had before the install.
    rm -r /data/extensions/<name>
    ```
 
-   Do not remove a file in it that this repository does not hold.
+   Do not remove a file in it that this repository does not hold. When `/data/extensions/<name>/` does not exist, the
+   module has no browser part. Remove nothing in this step, and continue with step 4.
 4. **Remove the module file.** Remove `/data/extensions/<name>.ts` with this command:
 
    ```bash
