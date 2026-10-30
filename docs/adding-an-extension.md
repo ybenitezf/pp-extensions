@@ -6,6 +6,11 @@ folder. The rules for the modules are in [AGENTS.md](../AGENTS.md).
 Use `<name>` below for the name of your extension: lowercase letters, digits, `-`, and `_`, such as `my-words`. It does
 not start with `pocket-`, and it is not the name of a built-in module of Pi Pocket.
 
+To put a module into Pi Pocket and to take it out again, use the skill
+[`.agents/skills/extension-dropin/SKILL.md`](../.agents/skills/extension-dropin/SKILL.md). The skill holds 2 playbooks:
+**Playbook 1: Install or update a module** and **Playbook 2: Uninstall a module**. A module reaches Pi Pocket's
+drop-in folder, `/data/extensions`, as a copy. It never reaches it as a link. `/data/extensions` belongs to Pi Pocket.
+
 ## 1. Copy the template
 
 ```sh
@@ -24,14 +29,15 @@ the comment at the top, `extensionName`, `toolName`, and `commandName`. The list
 [the template's README](../extensions/_template/README.md). Do not change the import of `./_pocket.d.ts`, and do not
 change `pocketApi = 2` while a tool of the module returns `output`.
 
-## 3. Link it into Pi Pocket
+## 3. Install it into Pi Pocket
 
-```sh
-./scripts/link.sh
-```
+Read [`.agents/skills/extension-dropin/SKILL.md`](../.agents/skills/extension-dropin/SKILL.md) and do
+**Playbook 1: Install or update a module**. The playbook gives the steps that put the module into `/data/extensions`:
+that folder belongs to Pi Pocket, and only Pi Pocket loads the module. The procedure is a copy of
+`extensions/<name>/<name>.ts` to `/data/extensions/<name>.ts`. It is never a link. Do not commit anything in
+`/data/extensions`.
 
-The script makes the link `/data/extensions/<name>.ts` to `extensions/<name>/<name>.ts`, and it prints each action. It
-skips the template and the test files. The link is not a file of this repository: do not commit it.
+After you change a module in this repository, do Playbook 1 again. A change reaches Pi Pocket only with a new copy.
 
 ## 4. Turn the module on
 

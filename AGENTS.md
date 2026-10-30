@@ -1,8 +1,7 @@
 # Rules for Pi sessions in this repository
 
 This repository holds the source of several Pi Pocket extensions. Pi Pocket loads them from its drop-in folder,
-`/data/extensions`, through the links that `scripts/link.sh` makes. These rules apply to every Pi session that works
-here.
+`/data/extensions`. A module goes there as a copy. These rules apply to every Pi session that works here.
 
 ## Module rules
 
@@ -18,19 +17,21 @@ here.
   `/data/extensions/_pocket.d.ts`, and it must print exit code 0.
 - **Do not push to a branch that is not the current branch.** Push only the branch that you are on, as
   `git push origin HEAD`. Do not force-push, and do not push another branch.
+- **Copy a module into `/data/extensions` with the skill.** The skill `.agents/skills/extension-dropin/SKILL.md` is the
+  only way that a module reaches `/data/extensions`, which belongs to Pi Pocket.
 
 ## Files of the repository
 
 ```
 extensions/<name>/<name>.ts   the modules
 extensions/_template/         the template: copy it, never turn it on, never link it
-scripts/link.sh               links each module into /data/extensions
 scripts/check.sh              type-checks each module
+.agents/skills/extension-dropin/SKILL.md   the copy steps for /data/extensions
 docs/adding-an-extension.md   the steps to add 1 extension
 index.entries.json            the draft list of gallery entries
 ```
 
-- Do not commit the links in `/data/extensions`, and do not commit `node_modules`.
+- Do not commit the copies in `/data/extensions`, and do not commit `node_modules`.
 - Do not delete a file that another person added. Ask first.
 - Do not change files in `/app`, which belongs to Pi Pocket.
 - Read [Adding an extension](docs/adding-an-extension.md) before you add a module. Read the Pi Pocket documentation in

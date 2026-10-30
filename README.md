@@ -4,16 +4,19 @@ The extensions of [Pi Pocket](https://github.com/ybenitezf/pi-pocket) that I wro
 TypeScript, and each module is 1 file.
 
 Pi Pocket loads a module from its drop-in folder, `/data/extensions`. This repository keeps the source of each module in
-its own folder, and `scripts/link.sh` makes the link from that folder into the drop-in folder.
+its own folder. A module reaches the drop-in folder as a copy of the module file, and never as a link. The skill
+`.agents/skills/extension-dropin/SKILL.md` gives that procedure.
 
 ## Use an extension
 
 ```sh
 git clone git@github.com:ybenitezf/pp-extensions.git
 cd pp-extensions
-./scripts/link.sh          # links each module into /data/extensions
 ./scripts/check.sh         # type-checks each module
 ```
+
+Next, put the module into the drop-in folder. Follow playbook 1 of the skill `.agents/skills/extension-dropin/SKILL.md`.
+The skill copies the module file into `/data/extensions`. Do not make a link.
 
 Then open Menu → Extensions in Pi Pocket, find the module in the group **Yours**, and turn it on. A new module is always
 off, and only the owner of the Pi Pocket can turn it on.
@@ -21,7 +24,8 @@ off, and only the owner of the Pi Pocket can turn it on.
 ## Add an extension
 
 Read [docs/adding-an-extension.md](docs/adding-an-extension.md). It gives the 6 steps: copy `extensions/_template`, rename
-it, run `scripts/link.sh`, turn the module on, run `scripts/check.sh`, commit.
+it, copy the module into `/data/extensions` with playbook 1 of the skill `.agents/skills/extension-dropin/SKILL.md`,
+turn the module on, run `scripts/check.sh`, commit.
 
 The rules for a module, and the rules for a Pi session that works in this repository, are in [AGENTS.md](AGENTS.md).
 
@@ -30,7 +34,8 @@ The rules for a module, and the rules for a Pi session that works in this reposi
 ```
 extensions/_template/         the template of a module, with a README of what to change in a copy
 extensions/<name>/<name>.ts   the modules
-scripts/link.sh               links each module into /data/extensions, and never replaces a foreign link
+.agents/skills/extension-dropin/SKILL.md
+                              the procedure to copy a module into /data/extensions, and to remove it again
 scripts/check.sh              type-checks each module against Pi Pocket's public types
 docs/adding-an-extension.md   the steps to add 1 extension
 index.entries.json            a draft list of gallery entries, in the format of Pi Pocket's gallery index
