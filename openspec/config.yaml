@@ -1,13 +1,24 @@
 schema: spec-driven
 
-# Project context (optional)
-# Add only constraints that should guide OpenSpec artifacts and workflows.
-# Include constraints an agent cannot infer by reading the code.
-# Keep general project documentation and discoverable codebase facts out.
-# Example:
-#   context: |
-#     Designs and tasks must cover Windows, macOS, and Linux
-#     Write all artifacts in Spanish
+# Project context: constraints an agent cannot infer from the code. See AGENTS.md for the full rules.
+context: |
+  This repository holds the source of Pi Pocket extensions. Pi Pocket loads a module from its drop-in folder,
+  `/data/extensions`, through the links that `scripts/link.sh` makes.
+
+  - A module is 1 file, `extensions/<name>/<name>.ts`, in a folder whose name is the same as the file name.
+    A helper that starts with `_` and a test file that ends in `.test.ts` are not modules.
+  - Module, extension, tool, and command names use lowercase letters, digits, `-`, and `_` only.
+    No extension, tool, or command name starts with `pocket-`, because Pi Pocket keeps those names.
+  - A tool that returns `output` needs version 2 of the extension API: export `pocketApi = 2` at the top level
+    of the module. A Pi Pocket before 0.18 does not load such a module.
+  - Run `scripts/check.sh` before each commit. It type-checks each module against `/data/extensions/_pocket.d.ts`
+    and must print exit code 0.
+  - Read `docs/adding-an-extension.md` before you add a module. Read the Pi Pocket documentation in
+    `/app/docs/extensions/` before you use a part of the extension API for the first time.
+  - One change of 1 module in 1 commit. Write the message as `feat: add <name>`, `fix: <what>`, or `chore: <what>`.
+  - Push only the branch that you are on, as `git push origin HEAD`. Do not force-push, and do not push another branch.
+  - Do not change files in `/app`, which belongs to Pi Pocket. Do not commit `node_modules` or the links in
+    `/data/extensions`. Do not delete a file that another person added: ask first.
 
 # Per-artifact rules (optional)
 # Add custom rules for specific artifacts.
