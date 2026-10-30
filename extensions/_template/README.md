@@ -4,7 +4,7 @@ Copy this folder for each new extension. Do not turn the template on: Pi Pocket 
 `_`. Copy the folder and never link it.
 
 A module reaches Pi Pocket's drop-in folder as a copy, and never as a link. The skill
-`.agents/skills/extension-dropin/SKILL.md` holds the procedure.
+[`.agents/skills/extension-dropin/SKILL.md`](../../.agents/skills/extension-dropin/SKILL.md) holds the procedure.
 
 ## What to change in the copy
 
@@ -22,9 +22,11 @@ A module reaches Pi Pocket's drop-in folder as a copy, and never as a link. The 
 7. **`pocketApi = 2`.** Keep the line while a tool of the module returns `output`, because that needs version 2 of the
    extension API.
 
-Then put the module into Pi Pocket. Read `.agents/skills/extension-dropin/SKILL.md`, **Playbook 1: Install or update a
-module**, and do the steps in it. After that, run `scripts/check.sh`, and turn the module on in Menu → Extensions, group
-**Yours**. The other steps are in [docs/adding-an-extension.md](../../docs/adding-an-extension.md).
+Then put the module into Pi Pocket. Read
+[`.agents/skills/extension-dropin/SKILL.md`](../../.agents/skills/extension-dropin/SKILL.md), **Playbook 1: Install or
+update a module**, and do the steps in it. After that, run `scripts/check.sh`, and turn the module on in
+Menu → Extensions, group **Yours**. The other steps are in
+[docs/adding-an-extension.md](../../docs/adding-an-extension.md).
 
 ## What to leave as it is
 
