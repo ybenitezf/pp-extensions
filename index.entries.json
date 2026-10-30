@@ -39,6 +39,42 @@
                 "access": "owner",
                 "commands": ["conversation my-example-count"]
             }
+        },
+        {
+            "name": "git-identity",
+            "title": "Keep git identity equal to 2 Pi Pocket settings",
+            "description": "Keeps the machine's git identity in step with 2 settings: `User name` and `Email`.",
+            "tags": ["git", "git-config", "identity", "settings", "user-name", "user-email", "commit-author"],
+            "author": {
+                "name": "ybenitezf",
+                "github": "ybenitezf"
+            },
+            "version": "0.1.0",
+            "source": {
+                "repo": "ybenitezf/pp-extensions",
+                "commit": "65fea20037191c244ed2d34dcd6bdb39c356e35a",
+                "path": "extensions/git-identity"
+            },
+            "files": [
+                {
+                    "name": "git-identity.ts",
+                    "sha256": "9d8a4496d7bd912fc256108014ca165572bb0f3b3599e3722d39d9155933731a",
+                    "size": 22349
+                }
+            ],
+            "pocketApi": 1,
+            "minPocket": "0.22.0",
+            "declares": {
+                "extensions": ["git-identity"],
+                "tools": [],
+                "readOnlyTools": [],
+                "hooks": [],
+                "sections": [],
+                "wraps": [],
+                "routes": [],
+                "client": null,
+                "access": "owner"
+            }
         }
     ]
 }
