@@ -17,8 +17,12 @@ This repository holds the source of several Pi Pocket extensions. Pi Pocket load
   `/data/extensions/_pocket.d.ts`, and it must print exit code 0.
 - **Do not push to a branch that is not the current branch.** Push only the branch that you are on, as
   `git push origin HEAD`. Do not force-push, and do not push another branch.
-- **Copy a module into `/data/extensions` with the skill.** The skill `.agents/skills/extension-dropin/SKILL.md` is the
-  only way that a module reaches `/data/extensions`, which belongs to Pi Pocket.
+- **Copy a module into `/data/extensions`, or remove it, with the skill.** The skill
+  `.agents/skills/extension-dropin/SKILL.md` is the only way that a module reaches `/data/extensions` and leaves it
+  again. `/data/extensions` belongs to Pi Pocket.
+- **Copy the module again after each edit.** An edit in this repository reaches Pi Pocket only with a new copy in
+  `/data/extensions`. Pi Pocket loads the new copy about 300 ms later, and only while the module is on. When the module
+  is off, the owner turns it on in Menu → Extensions to load the new copy.
 
 ## Files of the repository
 
@@ -26,7 +30,7 @@ This repository holds the source of several Pi Pocket extensions. Pi Pocket load
 extensions/<name>/<name>.ts   the modules
 extensions/_template/         the template: copy it, never turn it on, never link it
 scripts/check.sh              type-checks each module
-.agents/skills/extension-dropin/SKILL.md   the copy steps for /data/extensions
+.agents/skills/extension-dropin/SKILL.md   the install, uninstall, and reload steps for /data/extensions
 docs/adding-an-extension.md   the steps to add 1 extension
 index.entries.json            the draft list of gallery entries
 ```
