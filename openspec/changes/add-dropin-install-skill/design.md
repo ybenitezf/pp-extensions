@@ -9,7 +9,8 @@ See `proposal.md` - Why. The facts below shape the approach, and each was read f
   instead of disappearing.
 - **The on/off choice is keyed to the file name**, not to a path or an inode (`#isOn` calls `choice(module.file)`, and
   the config keeps `enabledExtensions: ["git-identity.ts"]`). A module copied in again under the same name comes back on.
-- **A drop-in starts off.** With no recorded choice, a drop-in is off and a built-in is on (`#isOn`).
+- **A drop-in starts off only with no recorded choice.** A drop-in with no recorded choice is off, a built-in with none
+  is on, and a drop-in whose file name has a recorded choice comes back with that choice (`#isOn`).
 - **A browser part cannot be a link.** `web.client` must name a file or folder right beside the module, and Pi Pocket
   refuses one that is a link: `web.client: <entry> is a link: give the file or folder itself`
   (`src/server/extension-web.ts`).
@@ -124,11 +125,12 @@ trap for the next session; a deleted script is a fact. `scripts/check.sh` stays 
 
 - **An agent copies in and never removes.** The install playbook says the removal is the other playbook, and the skill's
   description names uninstall, so the routing to it exists. The spec keeps the rule; a session that forgets leaves a file
-  that is off and inert, which is the least harmful leftover available. → The uninstall playbook starts from the same
-  ownership test, so it also works when a different session did the install.
-- **The install needs 1 click from the owner.** No session can turn a module on. This is a cost of Pi Pocket's design and
-  is the right one: a copy in a folder must not run by itself. → The playbook tells the owner in its last step, and does
-  not pretend the module runs.
+  that is inert while it has no recorded "on" choice, which is the least harmful leftover available. → The uninstall
+  playbook starts from the same ownership test, so it also works when a different session did the install.
+- **The install needs 1 click from the owner.** No session can turn a module on. This is a cost of Pi Pocket's design
+  and is the right one: a module runs because the owner chose it, and not because a session copied a file. A copy under
+  a name that the owner already turned on comes back on, and that choice is the owner's, not the session's. → The
+  playbook tells the owner in its last step, and does not pretend the module runs.
 - **A module edited in the drop-in folder stops proving as ours.** Removal then stops and asks. → Stated in the skill as
   a rule: change the module in the repository, then copy it again.
 - **Byte-equality is a weaker proof than an install record** when a module is copied by hand with a stale tree. → The

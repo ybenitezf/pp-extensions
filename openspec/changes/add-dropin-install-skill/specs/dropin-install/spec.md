@@ -72,13 +72,19 @@ folder, with the same name, and the uninstall playbook SHALL remove it. `README.
 
 ### Requirement: The owner turns the module on
 
-The install playbook SHALL tell the owner that a copied-in module starts off, and that only the owner turns it on in
-Menu → Extensions. It SHALL NOT claim that the module runs, and it SHALL NOT wait for it to run.
+The install playbook SHALL tell the owner the on/off state of the copied module: a file name with no earlier choice is
+off, and a module that the owner turned on before can come back on. Only the owner turns a module on in
+Menu → Extensions. The playbook SHALL NOT claim that the module runs, and it SHALL NOT wait for it to run.
 
 #### Scenario: The module does not run yet
 
-- **WHEN** the module is copied in and nobody has turned it on
+- **WHEN** the module is copied in and the owner never turned it on
 - **THEN** the owner hears that the module is off, and that the next step is theirs
+
+#### Scenario: The module comes back on
+
+- **WHEN** the module was turned on before and it is copied in again under the same file name
+- **THEN** Pi Pocket keeps the earlier choice, and the playbook tells the owner that the module can already be on
 
 ### Requirement: A copy is what makes Pi Pocket load the new code
 
@@ -94,7 +100,7 @@ when the module is copied again. It SHALL NOT point at a watcher, a script, or a
 
 The uninstall playbook SHALL remove the files that the install playbook copied, and nothing else. It SHALL NOT remove
 `_pocket.d.ts`, `node_modules`, a `<name>.gallery.json`, or any file that is not byte-equal to a module of this
-repository.
+repository. It SHALL say that it does not change the on/off choice, which Pi Pocket keeps in `/data/config.json`.
 
 #### Scenario: The folder is as it was
 

@@ -29,7 +29,7 @@ no session overwrites another person's extension, leaves a file behind, or makes
 
 - `dropin-install`: how 1 module of this repository reaches Pi Pocket's drop-in folder and leaves it again: the 2
   playbooks, the rule that copies never links, the ownership test before any write or removal, the browser part that must
-  travel with the module, and the fact that a copied-in module stays off until the owner turns it on.
+  travel with the module, and the on/off choice that a copied-in module comes back with.
 
 ### Modified Capabilities
 
