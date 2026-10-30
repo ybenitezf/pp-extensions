@@ -41,8 +41,24 @@ A value is checked before it goes to git. A value is refused, with 1 warning, wh
 name is longer than 100 characters, when an email is longer than 254 characters, or when an email does not look like
 `x@y.z`. A refused value changes nothing in git.
 
+## The notices it sends
+
+In the normal path, the module sends 1 notice to the owner at most per run. When the settings already match git, it
+writes nothing and sends no notice. When it writes nothing for another reason, it can still send 1:
+
+- A value is written: `info`. The notice names the keys written, `user.name` and `user.email`.
+- A write fails: `error`. The notice names the key and carries the words that git printed.
+- A value is refused: `warning`, sent when no write fails in the same run. The notice names the field and the rule
+  that failed.
+- `git` is not found: `warning`, 1 time at most, until Pi Pocket restarts.
+- The server has no `web.settings`, no `host.on`, or no `host.notice`: `warning`, and it names Pi Pocket 0.22.0. This
+  notice needs `host.notice`, so a server without that function sends nothing.
+
+A notice needs `host.notice`. On a server without it, the module sends nothing. It still loads, but it installs no
+settings, no listener, no tool, no command, and no route.
+
 ## Requirements
 
-It needs Pi Pocket 0.22.0. On an older server the module sends 1 notice and installs nothing.
+It needs Pi Pocket 0.22.0. On an older server, the module sends a notice with the level `warning` that names that version. The notice needs `host.notice`.
 
 It adds no other surface to Pi Pocket: no tool, no command, and no route.
