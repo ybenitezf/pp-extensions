@@ -1,0 +1,130 @@
+---
+name: extension-dropin
+description: Install, update, or remove one of this repository's extensions in Pi Pocket's drop-in folder, /data/extensions, by a copy and never by a link. Use when a person asks to install, update, uninstall, or remove an extension module of this repository in Pi Pocket for a test, or when a module must be reloaded in Pi Pocket after an edit.
+---
+
+Put 1 module of this repository into Pi Pocket's drop-in folder, `/data/extensions`, and take it out again. The
+procedure is a copy in and a copy out. It is never a link.
+
+This file has 2 playbooks. They do not depend on each other. Read only the one that the person asked for.
+
+## Facts that both playbooks use
+
+- The module is `extensions/<name>/<name>.ts`. The name is the module's folder name and its file name, for example
+  `git-identity`.
+- The browser part of a module is the folder `extensions/<name>/<name>/`. When it exists, it goes to
+  `/data/extensions/<name>/`.
+- Ownership is proven by bytes, and not by a marker file and not by a ledger file. Do not make a marker file, such as
+  `<name>.dev.json`. Do not keep a list of what you copied.
+- `/data/extensions` belongs to Pi Pocket. Do not touch `_pocket.d.ts`. Do not touch `node_modules`. Do not touch a
+  module that this repository does not hold, such as `subscription-usage` or a `<name>.gallery.json`.
+- Pi Pocket watches `/data/extensions` and it does not watch the folders below it. A write to
+  `/data/extensions/<name>/index.js` alone gives no event. A write to a top-level entry gives 1 event. Thus a copy of the
+  module file is what makes Pi Pocket load the new code.
+- A drop-in starts **off**. The on/off state is keyed to the file name. A module that goes in again under the same name
+  keeps its earlier choice. Only the owner turns a module on, in Menu → Extensions.
+- `web.client` may not be a symbolic link. Pi Pocket refuses a browser part that is a link. A copy is always a regular
+  file or a regular folder.
+
+## The ownership test
+
+Run this command before you write or remove anything:
+
+```bash
+cmp -s extensions/<name>/<name>.ts /data/extensions/<name>.ts
+```
+
+Read the exit code:
+
+| Situation | Exit code | What it means |
+| --- | --- | --- |
+| No file at `/data/extensions/<name>.ts` | not 0 | Nothing is in the way. Continue. |
+| The 2 files are byte-equal | 0 | The copy is ours. Continue. |
+| The 2 files have different bytes | not 0 | The copy is not ours. Stop. |
+
+**If the file at the target path exists with different bytes, write nothing and remove nothing.** Report the conflict to
+the person. Name the target path and say that the file is not byte-equal to the module. The person decides what happens
+to that file. This rule keeps another person's extension safe.
+
+A copied file stops proving as ours when somebody edits it in the drop-in folder. The remedy is simple: change the
+module in this repository, then copy it again.
+
+## Playbook 1: Install or update a module
+
+An update is the same copy as an install. When the copy is already ours, the ownership test passes and the copy replaces
+the old file.
+
+1. **Name the module.** Set `<name>` to the module's folder name in `extensions/`. Confirm that
+   `extensions/<name>/<name>.ts` exists.
+2. **Make 1 list of the files to copy.** The list holds `extensions/<name>/<name>.ts`. Add
+   `extensions/<name>/<name>/` when that folder exists. Add `extensions/<name>/_helper.ts` when that file exists: a
+   `_helper.ts` file must travel with the module, because an import from outside the drop-in folder is refused. No module
+   in this repository has a `_helper.ts` file today, and the rule is here for the first module that needs one.
+   Never copy `README.md`. Never copy a `*.test.ts` file. `README.md` is for people, and a test file is not loaded.
+3. **Run the ownership test** from "The ownership test" above. Stop on a difference and report the conflict.
+4. **Look at the target path.** If `/data/extensions/<name>.ts` is a symbolic link, remove the link with `rm` and then
+   continue. Remove the link only. The file that the link pointed at stays where it is. Do the same for a symbolic link
+   at `/data/extensions/<name>/`.
+5. **Copy the module file.** Copy `extensions/<name>/<name>.ts` to `/data/extensions/<name>.ts` with this command:
+
+   ```bash
+   cp extensions/<name>/<name>.ts /data/extensions/<name>.ts
+   ```
+
+   The result is a regular file, byte-equal to the module of this repository.
+6. **Copy the browser part.** When `extensions/<name>/<name>/` exists, copy the folder to `/data/extensions/<name>/` with
+   these 2 commands:
+
+   ```bash
+   mkdir -p /data/extensions/<name>
+   cp -R extensions/<name>/<name>/. /data/extensions/<name>/
+   ```
+
+   Copy the module file together with the folder, always. Do not copy a browser file on its own: Pi Pocket sees no event
+   for it, and the copy of the module file is what makes Pi Pocket reload and compute the new revision of the browser
+   files.
+7. **Confirm the copy.** Run the ownership test again. It must exit 0. Use `ls -l /data/extensions/<name>.ts` and
+   `ls -l /data/extensions/<name>/` to confirm that each entry is a regular file or a regular folder and not a link.
+8. **Tell the person 2 facts.** First, the module is copied in and it starts **off**. Second, the next step is theirs: the
+   owner turns the module on in Menu → Extensions. Do not say that the module runs. Do not wait for it to run.
+
+After an edit in this repository, repeat this playbook. An edit reaches the server only when the module is copied again.
+There is no watcher by design.
+
+## Playbook 2: Uninstall a module
+
+This playbook removes the module that the install playbook copied, and nothing else. It puts the drop-in folder back to
+the state that it had before the install.
+
+1. **Name the module.** Set `<name>` to the module's folder name in `extensions/`. Confirm that
+   `extensions/<name>/<name>.ts` exists. When this repository does not hold the module, stop: the module is not ours.
+2. **Run the ownership test** from "The ownership test" above. The test works also when a different session did the
+   install. Stop on a difference and report the conflict.
+3. **Remove the browser part.** When `/data/extensions/<name>/` exists, remove that folder, because the install playbook
+   copied it, with this command:
+
+   ```bash
+   rm -r /data/extensions/<name>
+   ```
+
+   Do not remove a file in it that this repository does not hold.
+4. **Remove the module file.** Remove `/data/extensions/<name>.ts` with this command:
+
+   ```bash
+   rm /data/extensions/<name>.ts
+   ```
+
+   Remove it only when the ownership test passed in step 2.
+5. **Leave the rest as it is.** Do not remove `_pocket.d.ts`. Do not remove `node_modules`. Do not remove a
+   `<name>.gallery.json`. Do not remove any module that this repository does not hold.
+6. **Confirm the result.** `/data/extensions/<name>.ts` and `/data/extensions/<name>/` are gone. The drop-in folder holds
+   what Pi Pocket had before the install, and the module's entry is gone from Menu → Extensions.
+7. **Tell the person** what you removed, and that the rest of the folder is unchanged.
+
+## What this skill does not do
+
+- It does not make a symbolic link, and it does not point at a script that does.
+- It does not write into this repository, and it does not copy a file out of `/data/extensions`.
+- It does not install from the gallery and it does not publish. The gallery keeps its own sidecar and its own update
+  path.
+- It does not add a cleanup step to Playbook 1. Removal is the whole job of Playbook 2.
