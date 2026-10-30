@@ -100,7 +100,7 @@ when the module is copied again. It SHALL NOT point at a watcher, a script, or a
 
 The uninstall playbook SHALL remove the files that the install playbook copied, and nothing else. It SHALL NOT remove
 `_pocket.d.ts`, `node_modules`, a `<name>.gallery.json`, or any file that is not byte-equal to a module of this
-repository. It SHALL say that it does not change the on/off choice, which Pi Pocket keeps in `/data/config.json`.
+repository. It SHALL say that it does not change the on/off choice, which Pi Pocket keeps in its own settings.
 
 #### Scenario: The folder is as it was
 
