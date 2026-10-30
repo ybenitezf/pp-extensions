@@ -1,0 +1,10 @@
+# Dependencies: the drop-in folder has its own link to Pi Pocket's packages.
+node_modules/
+
+# Logs.
+*.log
+
+# Temporary files of a type-check. scripts/check.sh writes its tsconfig.json in a temporary folder outside this
+# repository; that one is deleted after the check.
+*.tsconfig.json
+tsconfig.check.json

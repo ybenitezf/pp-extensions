@@ -1,0 +1,44 @@
+{
+    "format": 1,
+    "name": "Pi Pocket extensions by ybenitezf",
+    "repo": "https://github.com/ybenitezf/pp-extensions",
+    "extensions": [
+        {
+            "name": "my-example",
+            "title": "My example",
+            "description": "An example module for Pi Pocket: one tool for the model, and one command for people.",
+            "tags": ["example", "template", "words"],
+            "author": {
+                "name": "ybenitezf",
+                "github": "ybenitezf"
+            },
+            "version": "0.1.0",
+            "source": {
+                "repo": "ybenitezf/pp-extensions",
+                "commit": "0000000000000000000000000000000000000000",
+                "path": "extensions/my-example"
+            },
+            "files": [
+                {
+                    "name": "my-example.ts",
+                    "sha256": "cb09c99b8ae2cce7eed3038bffcededda4c5ae054cc9e32b42204101798193ae",
+                    "size": 2711
+                }
+            ],
+            "pocketApi": 2,
+            "minPocket": "0.26.0",
+            "declares": {
+                "extensions": ["my-example"],
+                "tools": ["my_example_count"],
+                "readOnlyTools": [],
+                "hooks": [],
+                "sections": [],
+                "wraps": [],
+                "routes": [],
+                "client": null,
+                "access": "owner",
+                "commands": ["conversation my-example-count"]
+            }
+        }
+    ]
+}
