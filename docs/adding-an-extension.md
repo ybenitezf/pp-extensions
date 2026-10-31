@@ -6,6 +6,12 @@ folder. The rules for the modules are in [AGENTS.md](../AGENTS.md).
 Use `<name>` below for the name of your extension: lowercase letters, digits, `-`, and `_`, such as `my-words`. It does
 not start with `pocket-`, and it is not the name of a built-in module of Pi Pocket.
 
+To put a module into Pi Pocket and to take it out again, use the skill
+[`.agents/skills/extension-dropin/SKILL.md`](../.agents/skills/extension-dropin/SKILL.md). The skill holds 2 playbooks:
+**Playbook 1: Install or update a module** and **Playbook 2: Uninstall a module**. A module reaches Pi Pocket's
+drop-in folder, `extensions/` in Pi Pocket's data folder, as a copy. It never reaches it as a link. The drop-in folder
+belongs to Pi Pocket.
+
 ## 1. Copy the template
 
 ```sh
@@ -24,20 +30,28 @@ the comment at the top, `extensionName`, `toolName`, and `commandName`. The list
 [the template's README](../extensions/_template/README.md). Do not change the import of `./_pocket.d.ts`, and do not
 change `pocketApi = 2` while a tool of the module returns `output`.
 
-## 3. Link it into Pi Pocket
+## 3. Install it into Pi Pocket
+
+Read [`.agents/skills/extension-dropin/SKILL.md`](../.agents/skills/extension-dropin/SKILL.md) and do
+**Playbook 1: Install or update a module**. The playbook gives the steps that put the module into the drop-in folder:
+that folder belongs to Pi Pocket, and only Pi Pocket loads the module. Set the folder once, before the commands of the
+playbook:
 
 ```sh
-./scripts/link.sh
+dropin="${PI_POCKET_DIR:-$HOME/.pi-pocket}/extensions"
 ```
 
-The script makes the link `/data/extensions/<name>.ts` to `extensions/<name>/<name>.ts`, and it prints each action. It
-skips the template and the test files. The link is not a file of this repository: do not commit it.
+The procedure is a copy of `extensions/<name>/<name>.ts` to `"$dropin/<name>.ts"`. It is never a link. Do not commit
+anything in the drop-in folder.
+
+After you change a module in this repository, do Playbook 1 again. A change reaches Pi Pocket only with a new copy.
 
 ## 4. Turn the module on
 
-Open Menu → Extensions in Pi Pocket. Your module is in the group **Yours**, and it is off. Turn it on. Pi Pocket loads
-the module and shows it in the sheet, with its description, its tools, and its routes. When the load fails, the sheet
-shows the error.
+Open Menu → Extensions in Pi Pocket. Your module is in the group **Yours**. A module whose file name the owner never
+turned on is off, and a module that went in before under the same name comes back with its earlier choice, so it can
+already be on. Only the owner turns it on. Pi Pocket loads the module and shows it in the sheet, with its description,
+its tools, and its routes. When the load fails, the sheet shows the error.
 
 ## 5. Check the module
 
@@ -45,7 +59,7 @@ shows the error.
 ./scripts/check.sh
 ```
 
-The script type-checks each module against `/data/extensions/_pocket.d.ts` with `npx tsc --noEmit`, in a temporary
+The script type-checks each module against `_pocket.d.ts` in the drop-in folder with `npx tsc --noEmit`, in a temporary
 folder, and prints the exit code. Exit code 0 means that each module is correct. When the exit code is not 0, the check
 prints the errors, with their file and line.
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Type-checks each module of this repository against Pi Pocket's public types, /data/extensions/_pocket.d.ts.
+# Type-checks each module of this repository against Pi Pocket's public types, `_pocket.d.ts` in the drop-in folder.
 #
 # A module is written for the drop-in folder, where `_pocket.d.ts` and `node_modules` are beside it. So this script makes
 # a temporary folder that looks like the drop-in folder, puts the module in it, writes a temporary `tsconfig.json` there,
@@ -11,11 +11,12 @@
 set -uo pipefail
 
 repo_root="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)"
-drop_in="${POCKET_DROPIN:-/data/extensions}"
+drop_in="${POCKET_DROPIN:-${PI_POCKET_DIR:-$HOME/.pi-pocket}/extensions}"
 pocket_types="$drop_in/_pocket.d.ts"
 
 if [ ! -f "$pocket_types" ]; then
     echo "check.sh: error: no types at $pocket_types" >&2
+    echo "check.sh: PI_POCKET_DIR decides that path: set it to Pi Pocket's data folder, or set POCKET_DROPIN to the extensions folder itself." >&2
     exit 1
 fi
 
