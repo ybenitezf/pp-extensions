@@ -16,6 +16,7 @@ pocket_types="$drop_in/_pocket.d.ts"
 
 if [ ! -f "$pocket_types" ]; then
     echo "check.sh: error: no types at $pocket_types" >&2
+    echo "check.sh: PI_POCKET_DIR decides that path: set it to Pi Pocket's data folder, or set POCKET_DROPIN to the extensions folder itself." >&2
     exit 1
 fi
 
