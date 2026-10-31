@@ -9,7 +9,8 @@ not start with `pocket-`, and it is not the name of a built-in module of Pi Pock
 To put a module into Pi Pocket and to take it out again, use the skill
 [`.agents/skills/extension-dropin/SKILL.md`](../.agents/skills/extension-dropin/SKILL.md). The skill holds 2 playbooks:
 **Playbook 1: Install or update a module** and **Playbook 2: Uninstall a module**. A module reaches Pi Pocket's
-drop-in folder, `/data/extensions`, as a copy. It never reaches it as a link. `/data/extensions` belongs to Pi Pocket.
+drop-in folder, `extensions/` in Pi Pocket's data folder, as a copy. It never reaches it as a link. The drop-in folder
+belongs to Pi Pocket.
 
 ## 1. Copy the template
 
@@ -32,10 +33,16 @@ change `pocketApi = 2` while a tool of the module returns `output`.
 ## 3. Install it into Pi Pocket
 
 Read [`.agents/skills/extension-dropin/SKILL.md`](../.agents/skills/extension-dropin/SKILL.md) and do
-**Playbook 1: Install or update a module**. The playbook gives the steps that put the module into `/data/extensions`:
-that folder belongs to Pi Pocket, and only Pi Pocket loads the module. The procedure is a copy of
-`extensions/<name>/<name>.ts` to `/data/extensions/<name>.ts`. It is never a link. Do not commit anything in
-`/data/extensions`.
+**Playbook 1: Install or update a module**. The playbook gives the steps that put the module into the drop-in folder:
+that folder belongs to Pi Pocket, and only Pi Pocket loads the module. Set the folder once, before the commands of the
+playbook:
+
+```sh
+dropin="${PI_POCKET_DIR:-$HOME/.pi-pocket}/extensions"
+```
+
+The procedure is a copy of `extensions/<name>/<name>.ts` to `"$dropin/<name>.ts"`. It is never a link. Do not commit
+anything in the drop-in folder.
 
 After you change a module in this repository, do Playbook 1 again. A change reaches Pi Pocket only with a new copy.
 
@@ -52,7 +59,7 @@ its tools, and its routes. When the load fails, the sheet shows the error.
 ./scripts/check.sh
 ```
 
-The script type-checks each module against `/data/extensions/_pocket.d.ts` with `npx tsc --noEmit`, in a temporary
+The script type-checks each module against `_pocket.d.ts` in the drop-in folder with `npx tsc --noEmit`, in a temporary
 folder, and prints the exit code. Exit code 0 means that each module is correct. When the exit code is not 0, the check
 prints the errors, with their file and line.
 
