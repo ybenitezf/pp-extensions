@@ -1,0 +1,177 @@
+/*
+ * OpenSpec status: the panel beside the conversation (design.md decision 7).
+ *
+ * It is drawn at a phone's width first: 1 column, no fixed width, and every text wraps. Only the CSS names that Pi
+ * Pocket keeps for extensions are used here: the tokens --text, --muted, --line, --ok, and --warn, and no other token
+ * (docs/extensions/reference/theme-surface.md, "Extensions' CSS names"; docs/extensions/browser-modules.md, "Look like
+ * the app"). The classes below are this module's own, so they start with `oss-`, apart from the app's `small`, `muted`,
+ * `mono`, and `button`.
+ */
+
+/* The panel: the app's panel body already pads and scrolls, so this adds only the spacing between the rows. */
+.oss-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-width: 0;
+    color: var(--text);
+}
+
+/* The line with "read <n> ago" and the refresh button. It wraps on a narrow phone instead of pushing the button out. */
+.oss-top {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    min-width: 0;
+}
+
+/* A reading that is more than 1 minute old, or that failed after a good 1: var(--warn) (task 3.5; decision 7). */
+.oss-stale {
+    color: var(--warn);
+    font-weight: 600;
+}
+
+/* The command's own words when a reading failed, in the same warning tone. They wrap instead of widening the panel. */
+.oss-error {
+    margin: 0;
+    color: var(--warn);
+    overflow-wrap: anywhere;
+}
+
+/* 1 change: its name, schema, marks, bar, and groups. It is as wide as the panel, and never wider. */
+.oss-change {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+    padding: 12px;
+    border: 1px solid var(--line);
+    border-radius: 10px;
+}
+
+.oss-head {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.oss-name {
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.oss-schema {
+    overflow-wrap: anywhere;
+}
+
+/* The artifact marks: 1 dot and 1 name for each artifact, in rows that wrap. */
+.oss-marks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px 10px;
+    min-width: 0;
+}
+
+.oss-mark {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    color: var(--muted);
+}
+
+.oss-dot {
+    flex: none;
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--muted);
+}
+
+/* Done, ready, and blocked: var(--ok), var(--muted), and var(--warn) (design.md decision 7). */
+.oss-mark[data-status="done"] {
+    color: var(--text);
+}
+
+.oss-mark[data-status="done"] .oss-dot {
+    background: var(--ok);
+}
+
+.oss-mark[data-status="ready"] .oss-dot {
+    background: var(--muted);
+}
+
+.oss-mark[data-status="blocked"] {
+    color: var(--warn);
+}
+
+.oss-mark[data-status="blocked"] .oss-dot {
+    background: var(--warn);
+}
+
+/* The task bar: a track that takes the room that is left, and a fill that a width in percent sizes. */
+.oss-progress {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.oss-bar {
+    flex: 1 1 0;
+    min-width: 0;
+    height: 6px;
+    border-radius: 3px;
+    background: var(--line);
+}
+
+.oss-bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    background: var(--ok);
+}
+
+/* The groups of `tasks.md`: each title on the left, its counter on the right, and the title takes the room it needs. */
+.oss-groups {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    min-width: 0;
+}
+
+.oss-group {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    min-width: 0;
+}
+
+.oss-group-title {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.oss-group-count {
+    flex: none;
+}
+
+/* The buttons of 1 change: its 4 skill commands in rows that wrap, so a phone never scrolls sideways to reach them.
+   They keep the app's `button` look, with a slightly smaller font, and the gap between them is small (task 6.1;
+   spec.md, "The panel offers the change's next action as a message"). */
+.oss-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    min-width: 0;
+}
+
+.oss-action {
+    font-size: 12px;
+}
