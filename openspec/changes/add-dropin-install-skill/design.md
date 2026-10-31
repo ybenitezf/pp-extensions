@@ -104,7 +104,8 @@ No module here has one today; the playbook says so in 1 line so the first module
 Pi Pocket watches `/data/extensions`, not the worktree, and it watches it non-recursively. Two consequences the playbook
 states plainly:
 
-- An edit reaches the server only when the module is copied again. There is no watcher by design.
+- An edit reaches the server only when the module is copied again. No watcher does the copy for the agent: Pi Pocket
+  watches its drop-in folder, and this repository watches nothing.
 - An edit to a browser part alone is not seen by that watcher. Copying the module again is what makes Pi Pocket reload
   and compute the new revision of the browser files, so the playbook copies the module together with its parts, always,
   rather than copying a client file on its own.
