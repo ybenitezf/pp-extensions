@@ -1,7 +1,8 @@
 # Rules for Pi sessions in this repository
 
 This repository holds the source of several Pi Pocket extensions. Pi Pocket loads them from its drop-in folder,
-`/data/extensions`. A module goes there as a copy. These rules apply to every Pi session that works here.
+`extensions/` in Pi Pocket's data folder. A module goes there as a copy. These rules apply to every Pi session that
+works here.
 
 ## Module rules
 
@@ -14,15 +15,17 @@ This repository holds the source of several Pi Pocket extensions. Pi Pocket load
 - **`pocketApi = 2` when a tool returns `output`.** A tool that returns `output` needs version 2 of the extension API.
   A Pi Pocket before 0.18 does not load such a module. Export the constant at the top level of the module.
 - **Run `scripts/check.sh` before each commit.** The script type-checks each module against
-  `/data/extensions/_pocket.d.ts`, and it must print exit code 0.
+  `$PI_POCKET_DIR/extensions/_pocket.d.ts`, or `~/.pi-pocket/extensions/_pocket.d.ts` when `PI_POCKET_DIR` is not
+  set. It must print exit code 0.
 - **Do not push to a branch that is not the current branch.** Push only the branch that you are on, as
   `git push origin HEAD`. Do not force-push, and do not push another branch.
-- **Copy a module into `/data/extensions`, or remove it, with the skill.** The skill
-  `.agents/skills/extension-dropin/SKILL.md` is the only way that a module reaches `/data/extensions` and leaves it
-  again. `/data/extensions` belongs to Pi Pocket.
+- **Copy a module into the drop-in folder, or remove it, with the skill.** The drop-in folder is `extensions/` in Pi
+  Pocket's data folder: `$PI_POCKET_DIR/extensions`, or `~/.pi-pocket/extensions` when `PI_POCKET_DIR` is not set.
+  The skill `.agents/skills/extension-dropin/SKILL.md` is the only way that a module reaches the drop-in folder and
+  leaves it again. The drop-in folder belongs to Pi Pocket.
 - **Copy the module again after each edit.** An edit in this repository reaches Pi Pocket only with a new copy in
-  `/data/extensions`. Pi Pocket loads the new copy about 300 ms later, and only while the module is on. When the module
-  is off, the owner turns it on in Menu → Extensions to load the new copy.
+  the drop-in folder, `$PI_POCKET_DIR/extensions`. Pi Pocket loads the new copy about 300 ms later, and only while
+  the module is on. When the module is off, the owner turns it on in Menu → Extensions to load the new copy.
 
 ## Files of the repository
 
@@ -30,12 +33,12 @@ This repository holds the source of several Pi Pocket extensions. Pi Pocket load
 extensions/<name>/<name>.ts   the modules
 extensions/_template/         the template: copy it, never turn it on, never link it
 scripts/check.sh              type-checks each module
-.agents/skills/extension-dropin/SKILL.md   the install, uninstall, and reload steps for /data/extensions
+.agents/skills/extension-dropin/SKILL.md   the install, uninstall, and reload steps for the drop-in folder
 docs/adding-an-extension.md   the steps to add 1 extension
 index.entries.json            the draft list of gallery entries
 ```
 
-- Do not commit the copies in `/data/extensions`, and do not commit `node_modules`.
+- Do not commit the copies in the drop-in folder, and do not commit `node_modules`.
 - Do not delete a file that another person added. Ask first.
 - Do not change files in `/app`, which belongs to Pi Pocket.
 - Read [Adding an extension](docs/adding-an-extension.md) before you add a module. Read the Pi Pocket documentation in
