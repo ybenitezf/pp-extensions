@@ -93,7 +93,8 @@ the old file.
    module runs. Do not wait for it to run.
 
 After an edit in this repository, repeat this playbook. An edit reaches the server only when the module is copied again.
-There is no watcher by design.
+No watcher does the copy for you: Pi Pocket watches its drop-in folder, and this repository watches nothing. The copy
+is a step of this playbook.
 
 ## Playbook 2: Uninstall a module
 
