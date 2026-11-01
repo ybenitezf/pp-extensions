@@ -168,3 +168,9 @@
 .oss-action {
     font-size: 12px;
 }
+
+/* The note that takes the place of the 2 buttons that have no work: quiet, in the buttons' own 12px text. */
+.oss-note {
+    color: var(--muted);
+    font-size: 12px;
+}
