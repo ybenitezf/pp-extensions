@@ -145,17 +145,53 @@ The literal command of tasks 2.5 and 2.6 could not run on the machine that held 
 
 The owner accepted the substitute for both checks. Task 6.1, the action buttons, is delivered.
 
+### The check of the 4 button states
+
+The module was copied into the drop-in folder with the `extension-dropin` skill, and the 3 installed files match the
+source. The module was on, and the panel showed the new rule. All 4 states were seen in the running panel of 1 session
+of this repository.
+
+| State | Buttons | Line | Seen on |
+| --- | --- | --- | --- |
+| A | no button | `nothing to act on yet` | a temporary change with no artifact written |
+| B | `Archive` only | `no tasks yet` | a temporary change that had `proposal.md` and no `tasks.md` |
+| C | `Archive` only | `all tasks done` | a temporary change whose every task line was checked |
+| D | `Apply` and `Archive` | none | the real change `gate-the-change-actions`, which had 6 of its 11 tasks checked |
+
+This repository holds 1 active change, so states A, B, and C were seen with temporary change folders made for this
+check. Those 3 folders were removed straight after it, so only state D was seen on a real change.
+
+3 more things were seen: a row with no button leaves no empty gap where the buttons were, a row with `Archive` only
+still reads as 1 row of the panel, and a row keeps its height when the muted line takes the place of 2 buttons, at a
+phone's width.
+
 ### The action buttons
 
-Each change in the panel gives exactly 2 buttons, `Apply` and `Archive`. `Apply` puts
-`/skill:openspec-apply-change <name>` into the session's message box, and `Archive` puts
-`/skill:openspec-archive-change <name>` into it. The row wraps at a phone's width and nothing is cut.
+A row gives only the buttons that have work to do. The module reads 4 states of the change, in the order below, and
+the first one that matches decides the row. `Apply` puts `/skill:openspec-apply-change <name>` into the session's
+message box, and `Archive` puts `/skill:openspec-archive-change <name>` into it. Neither button sends anything. The row
+wraps at a phone's width and nothing is cut.
 
 - A tap on `Apply` was checked in the app: the message box then held
   `/skill:openspec-apply-change add-openspec-status`, the conversation did not move, and nothing was sent. A tap on
   `Archive` was not checked on its own.
 - There is no explore, propose, or verify button. `explore` is a session-wide mode and `propose` starts a new change,
   so neither acts on 1 change, and this repository has no `verify` skill.
+
+### The 4 states of the buttons
+
+The module reads the 4 states in this order, and the first one that matches wins. No state reads a field that the
+route does not answer: it uses `name`, `artifacts[].id`, `artifacts[].status`, `apply[]`, `tasks.done`, and
+`tasks.total` only.
+
+| State | Buttons | Line |
+| --- | --- | --- |
+| Nothing is written yet: no `artifacts[].status` is `done`, and `tasks.total` is 0 | no button | `nothing to act on yet` |
+| The tasks are not written yet: `tasks.total` is 0, and not every id of `apply[]` is `done` | `Archive` only | `no tasks yet` |
+| Every task is checked: `tasks.total` is more than 0, and `tasks.done` is `tasks.total` | `Archive` only | `all tasks done` |
+| The change has work to apply: any other change, such as 1 with an open task line whose `tasks` artifact is `done`, or 1 with no `tasks.md` whose `apply` list is all `done` | `Apply` and `Archive` | none |
+
+`none` in the last column means the row shows no line.
 
 ## Sample of the CLI answer
 

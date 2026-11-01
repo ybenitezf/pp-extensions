@@ -166,6 +166,38 @@ function ageText(at) {
     return hours < 48 ? `read ${hours} h ago` : `read ${Math.round(hours / 24)} d ago`;
 }
 
+/** Which buttons 1 change gets, and its muted line: the 4 states come from the change's own spec delta. */
+function actionOf(change) {
+    const tasks = change.tasks ?? {};
+    const artifacts = Array.isArray(change.artifacts) ? change.artifacts : [];
+    const apply = Array.isArray(change.apply) ? change.apply : [];
+    const total = typeof tasks.total === "number" ? tasks.total : 0;
+    const done = typeof tasks.done === "number" ? tasks.done : 0;
+    const written = artifacts.some((artifact) => artifact?.status === "done");
+
+    // Every artifact that `apply` names is done. No name at all means that no requirement is unmet.
+    const ready = apply.every((id) =>
+        artifacts.some((artifact) => artifact?.id === id && artifact?.status === "done")
+    );
+
+    // Nothing is written yet: no artifact is done and there is no task line.
+    if (!written && !(total > 0)) {
+        return { apply: false, archive: false, note: "nothing to act on yet" };
+    }
+
+    // There is no task line, and not every artifact that `apply` names is done: the case with no `tasks.md`.
+    if (!(total > 0) && !ready) {
+        return { apply: false, archive: true, note: "no tasks yet" };
+    }
+
+    // There is work in the change, and every task line of it is checked.
+    if (total > 0 && done === total) {
+        return { apply: false, archive: true, note: "all tasks done" };
+    }
+
+    return { apply: true, archive: true, note: null };
+}
+
 export default function setup(pocket) {
     // The status item, the panel, and `insertText` came in 0.19.0 and are experimental: an older app has none, so
     // this module does nothing there instead of throwing at its first use.
@@ -287,8 +319,9 @@ export default function setup(pocket) {
     // The buttons of a change put their skill command into the message box with `insertText`, and nothing else: no
     // message is sent, no command is run, and no other session is read.
 
-    /** 1 change in the panel: its name, schema, artifact marks, task bar, task groups, and its 2 skill-command buttons. */
+    /** 1 change in the panel: its name, schema, artifact marks, task bar, task groups, and its skill-command buttons. */
     function ChangeRow({ change }) {
+        const action = actionOf(change);
         const tasks = change.tasks ?? {};
         const counter = `${tasks.done ?? 0}/${tasks.total ?? 0}`;
         const artifacts = Array.isArray(change.artifacts) ? change.artifacts : [];
@@ -332,20 +365,23 @@ export default function setup(pocket) {
             </ul>`}
             ${present.insertText &&
             html`<div class="oss-actions">
-                <button
+                ${action.apply &&
+                html`<button
                     class="button oss-action"
                     onClick=${() => pocket.insertText(`/skill:openspec-apply-change ${change.name}`)}
                     title=${`Puts /skill:openspec-apply-change ${change.name} in the message box, and sends nothing`}
                 >
                     Apply
-                </button>
-                <button
+                </button>`}
+                ${action.archive &&
+                html`<button
                     class="button oss-action"
                     onClick=${() => pocket.insertText(`/skill:openspec-archive-change ${change.name}`)}
                     title=${`Puts /skill:openspec-archive-change ${change.name} in the message box, and sends nothing`}
                 >
                     Archive
-                </button>
+                </button>`}
+                ${action.note !== null && html`<span class="oss-note">${action.note}</span>`}
             </div>`}
         </article>`;
     }
