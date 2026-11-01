@@ -162,7 +162,7 @@
     flex: none;
 }
 
-/* The buttons of 1 change: its 4 skill commands in rows that wrap, so a phone never scrolls sideways to reach them.
+/* The buttons of 1 change: its 2 skill commands in rows that wrap, so a phone never scrolls sideways to reach them.
    They keep the app's `button` look, with a slightly smaller font, and the gap between them is small (task 6.1;
    spec.md, "The panel offers the change's next action as a message"). */
 .oss-actions {

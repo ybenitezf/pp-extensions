@@ -27,22 +27,10 @@ const extensionName = "openspec-status";
 const neededPocket = "Pi Pocket 0.26.0";
 
 /**
- * The 2 additions of the server API that this module uses, in the order in which it needs them: the route that gives 1
- * reading for 1 conversation (task 2.5), and the event that says when Pi stopped working (task 2.6).
- *
- * `web.client` and `web.send` are not here: they came in 0.14.0, the oldest API level that Pi Pocket loads (level 1).
- * `pocket.status` and `pocket.panel` are the browser part's checks, not the server's: they are in
- * `openspec-status/index.js` (task 3.1), where `pocket` is.
- */
-const serverAdditions = ["web.conversationRoute", "host.on"] as const;
-
-/**
- * The limits of the commands that this module runs, in milliseconds, and the 2 limits of task 2.3: `git rev-parse` reads
- * 1 path on a local disk and `openspec --version` prints 1 line, so each gets 5 seconds; a reading walks the project's
- * changes and their files, so it gets 10 seconds.
+ * The limits of the 2 commands that this module runs, in milliseconds (task 2.3): `git rev-parse` reads 1 path on a local
+ * disk, so it gets 5 seconds, and a reading walks the project's changes and their files, so it gets 10 seconds.
  */
 const gitTimeoutMs = 5_000;
-const versionTimeoutMs = 5_000;
 const readingTimeoutMs = 10_000;
 
 /**
@@ -53,39 +41,29 @@ const readingTimeoutMs = 10_000;
  */
 const projectRoots = new Map<string, string>();
 
-/** 1 member of the server API that this module uses. */
-type ServerAddition = (typeof serverAdditions)[number];
-
-/** The host and web of 1 load, as the check reads them: a type that is narrower than what the app gives. */
-interface ServerApi {
-    readonly host: Host;
-    readonly web: Web;
-}
-
 /**
- * Tells whether 1 addition is on this server (task 2.1).
+ * The server-side feature check (task 2.1): the additions that this server does not have, in the order in which this
+ * module needs them: the route that gives 1 reading for 1 conversation (task 2.5), then the event that says when Pi
+ * stopped working (task 2.6).
  *
  * The documented check for an addition is a run-time one, `typeof web.command === "function"` (policy A10 in
  * `docs/extensions/policies/api-stability.md`). The `api` number cannot serve here: an addition does not change it
  * (policy A8). A server that restarted keeps the host that it had while a module loads again, so the check runs on every
  * load, before anything is installed.
- */
-function hasAddition(api: ServerApi, addition: ServerAddition): boolean {
-    switch (addition) {
-        case "web.conversationRoute":
-            return typeof api.web.conversationRoute === "function";
-        case "host.on":
-            return typeof api.host.on === "function";
-    }
-}
-
-/**
- * The server-side feature checks: the additions that are missing on this server, in the order of `serverAdditions`.
  *
- * The browser part does its own check of `pocket.status` and `pocket.panel`, so this file never looks at `pocket`.
+ * `web.client`, `web.send`, and `web.onDispose` are stable members since 0.14.0, the oldest API level that Pi Pocket
+ * loads, so this file does not check them. `pocket.status` and `pocket.panel` are the browser part's checks, not this
+ * file's: they are in `openspec-status/index.js` (task 3.1), where `pocket` is.
  */
-function missingServerAdditions(api: ServerApi): readonly ServerAddition[] {
-    return serverAdditions.filter((addition) => !hasAddition(api, addition));
+function missingServerAdditions(host: Host, web: Web): string[] {
+    const missing: string[] = [];
+    if (typeof web.conversationRoute !== "function") {
+        missing.push("web.conversationRoute");
+    }
+    if (typeof host.on !== "function") {
+        missing.push("host.on");
+    }
+    return missing;
 }
 
 /**
@@ -103,11 +81,11 @@ const commandNames = ["git", "openspec"] as const;
 type CommandName = (typeof commandNames)[number];
 
 /**
- * What 1 run of 1 command answered: its exit code, its 2 streams as it wrote them, and the reason when it did not run at
- * all (task 2.3).
+ * What 1 run of 1 command answered: its exit code, its 2 streams as it wrote them, and the trouble when it did not run
+ * at all (task 2.3).
  *
- * A run never throws. A command that is not on this machine answers `code: null` and a `problem` with the words
- * "not found" in it, so the status item can say what the spec asks for the case in which the command is not installed.
+ * A run never throws. A command that is not on this machine answers `code: null` and a `trouble` of kind `not-found`, so
+ * the status item can say what the spec asks for the case in which the command is not installed.
  */
 export interface CommandRun {
     /** The command that was asked for. */
@@ -120,8 +98,19 @@ export interface CommandRun {
     readonly stdout: string;
     /** What the command wrote on its standard error. */
     readonly stderr: string;
-    /** Why the command did not run, in words for a person, or `""` when it ran and gave an exit code. */
-    readonly problem: string;
+    /** Why the command did not run, or `null` when it ran and gave an exit code. */
+    readonly trouble: CommandTrouble | null;
+}
+
+/** The kind of trouble that kept 1 command from running to an exit code. */
+export type CommandTroubleKind = "not-found" | "timeout" | "failed";
+
+/** Why 1 command did not run, in words for a person. */
+export interface CommandTrouble {
+    /** `not-found` is a command that this machine does not hold, `timeout` is 1 that ran past its limit. */
+    readonly kind: CommandTroubleKind;
+    /** The trouble in words, such as `openspec command not found on this machine (ENOENT)`. */
+    readonly words: string;
 }
 
 /** How long 1 run may take, and the folder that it runs in. */
@@ -140,24 +129,28 @@ interface RunError {
 }
 
 /**
- * The reason that 1 command did not run, in words for a person, or `""` when it ran and gave an exit code (task 2.3).
+ * The trouble that kept 1 command from running to an exit code, or `null` when it ran and gave one (task 2.3).
  *
- * A command that this machine does not hold gives the words "not found", with the `ENOENT` that `execFile` reported: that
- * answer is not a throw, and it is what the status item says. A command that ran past its limit names the limit. A
- * non-zero exit is no problem here: the command ran, its own words are in `stderr`, and the caller decides what they mean.
+ * A command that this machine does not hold gives kind `not-found`, with the `ENOENT` that `execFile` reported: that
+ * answer is not a throw, and it is what the status item says. A command that ran past its limit gives kind `timeout` and
+ * names the limit. A non-zero exit is no trouble here: the command ran, its own words are in `stderr`, and the caller
+ * decides what they mean.
  */
-function describeTrouble(command: CommandName, timeoutMs: number, error: RunError): string {
+function describeTrouble(command: CommandName, timeoutMs: number, error: RunError): CommandTrouble | null {
     if (error.code === "ENOENT") {
-        return `${command} command not found on this machine (ENOENT)`;
+        return { kind: "not-found", words: `${command} command not found on this machine (ENOENT)` };
     }
     if (error.killed === true) {
-        return `${command} command did not answer within ${timeoutMs} ms, so it was stopped`;
+        return {
+            kind: "timeout",
+            words: `${command} command did not answer within ${timeoutMs} ms, so it was stopped`,
+        };
     }
     if (typeof error.code === "number") {
-        return "";
+        return null;
     }
     const reason = typeof error.message === "string" && error.message !== "" ? `: ${error.message}` : "";
-    return `${command} command did not run${reason}`;
+    return { kind: "failed", words: `${command} command did not run${reason}` };
 }
 
 /**
@@ -165,8 +158,7 @@ function describeTrouble(command: CommandName, timeoutMs: number, error: RunErro
  * answers 1 `CommandRun`.
  *
  * It never uses a shell: `execFile` takes the words apart, and `shell` is off, so no folder name and no change name can
- * grow into a second command. It never throws: a command that is absent, too slow, or gone gives an answer with a
- * `problem`.
+ * grow into a second command. It never throws: a command that is absent, too slow, or gone answers with a `trouble`.
  */
 async function runCommand(command: CommandName, args: readonly string[], options: CommandOptions): Promise<CommandRun> {
     const words = [...args];
@@ -179,7 +171,7 @@ async function runCommand(command: CommandName, args: readonly string[], options
                 const out = typeof stdout === "string" ? stdout : "";
                 const err = typeof stderr === "string" ? stderr : "";
                 if (error === null) {
-                    resolve({ command, args: words, code: 0, stdout: out, stderr: err, problem: "" });
+                    resolve({ command, args: words, code: 0, stdout: out, stderr: err, trouble: null });
                     return;
                 }
                 const failure = error as RunError;
@@ -190,20 +182,11 @@ async function runCommand(command: CommandName, args: readonly string[], options
                     code: typeof code === "number" ? code : null,
                     stdout: out,
                     stderr: err,
-                    problem: describeTrouble(command, options.timeoutMs, failure),
+                    trouble: describeTrouble(command, options.timeoutMs, failure),
                 });
             },
         );
     });
-}
-
-/**
- * The version check: `openspec --version` in 1 folder, within 5 seconds (task 2.3). It tells whether this machine holds
- * the command, and which version, which the panel shows while a reading fails. Exported so that a check can run it
- * without a live session.
- */
-export async function openSpecVersion(cwd: string): Promise<CommandRun> {
-    return await runCommand("openspec", ["--version"], { cwd, timeoutMs: versionTimeoutMs });
 }
 
 /**
@@ -236,7 +219,7 @@ async function holdsOpenSpecChanges(folder: string): Promise<boolean> {
  */
 async function gitTopLevel(folder: string): Promise<string | null> {
     const run = await runCommand("git", ["rev-parse", "--show-toplevel"], { cwd: folder, timeoutMs: gitTimeoutMs });
-    if (run.problem !== "" || run.code !== 0) {
+    if (run.trouble !== null || run.code !== 0) {
         return null;
     }
     const top = run.stdout.trim();
@@ -319,14 +302,6 @@ export interface ReadingChange {
     readonly tasks: ReadingTasks;
 }
 
-/** The OpenSpec project that 1 folder answered: its root, and how the CLI found it. */
-export interface ReadingProject {
-    /** The absolute path of the project root, the CLI's `root.path`. */
-    readonly root: string;
-    /** `nearest` is an `openspec/` folder that was found, `implicit` is none found (decision 4 and the design's addendum). */
-    readonly source: "nearest" | "implicit";
-}
-
 /** Why 1 reading answered no project and no change. */
 export interface ReadingError {
     /** `not-found` is the `openspec` command that this machine does not hold, `failed` is every other trouble. */
@@ -343,8 +318,11 @@ export interface ReadingError {
  * `changes: []` is a project that holds no active change; a project with changes is the usual case.
  */
 export interface OpenSpecReading {
-    /** The project, or `null` when the folder and its git root hold no `openspec/` folder. */
-    readonly project: ReadingProject | null;
+    /**
+     * The absolute path of the project root, the CLI's `root.path`, or `null` when the folder and its git root hold no
+     * `openspec/` folder (decision 4 and the design's addendum).
+     */
+    readonly project: string | null;
     /** 1 entry for each active change, and `[]` when the project holds none. */
     readonly changes: readonly ReadingChange[];
     /** The time of this reading, as ISO 8601, so that the panel can say how old it is. */
@@ -488,8 +466,13 @@ function troubleWords(run: CommandRun): string {
 /** The first line of what 1 run wrote, for the case in which the answer is no JSON. */
 function firstWords(run: CommandRun): string {
     const words = run.stdout.trim() !== "" ? run.stdout.trim() : run.stderr.trim();
-    const firstLine = words.split(/\r?\n/, 1)[0] ?? "";
+    const firstLine = words.split(/\r?\n/, 1)[0];
     return shorten(firstLine === "" ? "nothing was written" : firstLine);
+}
+
+/** A reading that holds no project and no change, with the reason: the 4 failures of `readOpenSpecStatus`. */
+function failedReading(at: string, kind: ReadingError["kind"], message: string): OpenSpecReading {
+    return { project: null, changes: [], at, error: { kind, message } };
 }
 
 /**
@@ -509,13 +492,12 @@ export async function readOpenSpecStatus(folder: string): Promise<OpenSpecReadin
     const run = await openSpecStatus(folder);
     const at = new Date().toISOString();
 
-    if (run.problem !== "") {
-        // The runner says "not found" with the `ENOENT` that `execFile` reported, and names a limit that it stopped.
-        const kind = run.problem.includes("ENOENT") ? "not-found" : "failed";
-        return { project: null, changes: [], at, error: { kind, message: shorten(run.problem) } };
+    if (run.trouble !== null) {
+        // A machine without the `openspec` command is the case that the status item names in its own words.
+        return failedReading(at, run.trouble.kind === "not-found" ? "not-found" : "failed", shorten(run.trouble.words));
     }
     if (run.code !== 0) {
-        return { project: null, changes: [], at, error: { kind: "failed", message: troubleWords(run) } };
+        return failedReading(at, "failed", troubleWords(run));
     }
 
     let answer: Record<string, unknown> | null;
@@ -525,30 +507,20 @@ export async function readOpenSpecStatus(folder: string): Promise<OpenSpecReadin
         answer = null;
     }
     if (answer === null) {
-        return {
-            project: null,
-            changes: [],
-            at,
-            error: { kind: "failed", message: `openspec status answered no JSON: ${firstWords(run)}` },
-        };
+        return failedReading(at, "failed", `openspec status answered no JSON: ${firstWords(run)}`);
     }
 
     const root = asRecord(answer.root);
     const source = root === null ? undefined : root.source;
     if (source !== "nearest" && source !== "implicit") {
         // Without `root.source` the 3 cases cannot be told apart, so the reading says so instead of guessing a project.
-        return {
-            project: null,
-            changes: [],
-            at,
-            error: { kind: "failed", message: "openspec status answered no root.source, so the reading is unclear" },
-        };
+        return failedReading(at, "failed", "openspec status answered no root.source, so the reading is unclear");
     }
     if (source === "implicit") {
         return { project: null, changes: [], at, error: null };
     }
 
-    const project: ReadingProject = { root: textOf(root?.path, folder), source: "nearest" };
+    const project = textOf(root?.path, folder);
     const changes: ReadingChange[] = [];
     for (const entry of listOf(answer.changes)) {
         const change = asRecord(entry);
@@ -573,7 +545,7 @@ export async function readOpenSpecStatus(folder: string): Promise<OpenSpecReadin
             schema: textOf(change.schemaName, ""),
             artifacts,
             apply: textsOf(change.applyRequires),
-            tasks: await readTaskCounts(project.root, name),
+            tasks: await readTaskCounts(project, name),
         });
     }
 
@@ -767,21 +739,19 @@ function installTriggers(host: Host, web: Web): readonly HookRegistration[] {
         },
     });
 
-    // `web.onDispose` came in 0.14.0, the oldest API level that Pi Pocket loads, so this check is for a server that is
-    // older than this module: it keeps the triggers and loses the cleanup.
-    if (typeof web.onDispose === "function") {
-        web.onDispose(stopRunEnded);
-        web.onDispose(stopNudges);
-    }
+    // The 2 triggers of this module (task 2.6), and their cleanup, in the style of `web.client` below: `host.on` came in
+    // 0.22.0, so the check above has already returned on an app that does not have it.
+    web.onDispose(stopRunEnded);
+    web.onDispose(stopNudges);
 
     return [toolHook];
 }
 
 export default function createExtension(host: Host, web: Web): ReturnType<typeof defineExtension> {
-    // The feature checks. On an older Pi Pocket the owner gets 1 warning, and the module installs nothing else: it does
+    // The feature check. On an older Pi Pocket the owner gets 1 warning, and the module installs nothing else: it does
     // not fall back to a route that the server does not have, and it does not read folders in a way that nobody asked
     // for.
-    const missing = missingServerAdditions({ host, web });
+    const missing = missingServerAdditions(host, web);
     if (missing.length > 0) {
         host.notice(
             "warning",
@@ -791,31 +761,14 @@ export default function createExtension(host: Host, web: Web): ReturnType<typeof
     }
 
     // The browser part: the folder `openspec-status/` beside this file, whose `index.js` draws the status item and the
-    // panel (task 3.1). `web.client` came in 0.14.0, the oldest API level that Pi Pocket loads, so this check is for an app
-    // that is older than this module: it loses the drawing, and the route still answers.
-    if (typeof web.client === "function") {
-        web.client(browserEntry);
-    } else {
-        host.notice(
-            "warning",
-            `${extensionName} has no browser part on this app: it has no web.client. The reading still answers ${routePath}.`,
-        );
-    }
+    // panel (task 3.1).
+    web.client(browserEntry);
 
     // The 1 route: `GET status/:source` with `{ conversation: "source" }`, so the app resolves the session and checks
     // that the person may see it before `answerStatus` runs, and no request can name a folder (decision 3).
     web.conversationRoute("GET", routePath, answerStatus, { conversation: routeSource });
 
-    // The 2 triggers of task 2.6, guarded in the style of `hasAddition`: `host.on` came in 0.22.0 and `web.send` in
-    // 0.14.0. An app without one of them gets 1 warning and no trigger, and the route above still answers.
-    const canTrigger = typeof host.on === "function" && typeof web.send === "function";
-    if (!canTrigger) {
-        host.notice(
-            "warning",
-            `${extensionName} has no triggers on this app: it has no host.on or no web.send. The reading still answers ${routePath}.`,
-        );
-    }
-    const hooks = canTrigger ? installTriggers(host, web) : [];
-
-    return defineExtension({ name: extensionName, hooks });
+    // The 2 triggers of task 2.6. `web.client`, `web.send`, and `web.onDispose` are stable members since 0.14.0, the
+    // oldest API level that Pi Pocket loads, and the check above has already returned on an app without `host.on`.
+    return defineExtension({ name: extensionName, hooks: installTriggers(host, web) });
 }

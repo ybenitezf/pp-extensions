@@ -103,7 +103,7 @@ function glanceOf(reading) {
  * Whether the panel marks 1 reading stale: whether the numbers on screen are not from now. They are not when the reading
  * failed after a good 1 gave them, or when the reading is more than 1 minute old (task 3.5).
  */
-function staleOf(reading, now = Date.now()) {
+function staleOf(reading) {
     if (reading === null) {
         return false;
     }
@@ -116,7 +116,7 @@ function staleOf(reading, now = Date.now()) {
 
     const time = Date.parse(reading.at ?? "");
 
-    return Number.isFinite(time) && now - time > staleMs;
+    return Number.isFinite(time) && Date.now() - time > staleMs;
 }
 
 /** The item of a good reading: the change's name and counter, the count and the summed counter, or no active change. */
@@ -173,14 +173,14 @@ function markStateOf(artifact) {
 }
 
 /** When the reading was made, in words: "read just now", "read 40 s ago", "read 3 min ago", "read 2 h ago". */
-function ageText(at, now = Date.now()) {
+function ageText(at) {
     const time = Date.parse(at ?? "");
 
     if (!Number.isFinite(time)) {
         return "read at an unknown time";
     }
 
-    const seconds = Math.max(0, Math.round((now - time) / 1000));
+    const seconds = Math.max(0, Math.round((Date.now() - time) / 1000));
 
     if (seconds < 5) {
         return "read just now";
@@ -338,19 +338,9 @@ export default function setup(pocket) {
         }
     }
 
-    // The panel's refresh button: 1 new reading of this conversation's route, and nothing else. It sends no message,
-    // runs no command, and reads no other session (spec.md, "A person asks for a new reading"). The reading also
-    // starts the poll over from 30 s, as any reading does.
-    function refresh() {
-        void read();
-    }
-
-    // The buttons of a change: each one puts its apply or archive command into the message box of the session, and the
-    // person sends it or not. `insertText` is the only call here, so nothing is sent, and there is no explore, propose,
-    // or verify button (task 6.1; spec.md, "The panel offers the change's next action as a message").
-    function putInBox(text) {
-        pocket.insertText(text);
-    }
+    // The buttons of a change put their skill command into the message box with `insertText`, and nothing else: no
+    // message is sent, no command is run, and no other session is read (spec.md, "A person asks for a new reading", and
+    // "The panel offers the change's next action as a message").
 
     /**
      * 1 change in the panel: its name and schema, its artifact marks, its task bar, its task groups, and its 2
@@ -402,14 +392,14 @@ export default function setup(pocket) {
             html`<div class="oss-actions">
                 <button
                     class="button oss-action"
-                    onClick=${() => putInBox(`/skill:openspec-apply-change ${change.name}`)}
+                    onClick=${() => pocket.insertText(`/skill:openspec-apply-change ${change.name}`)}
                     title=${`Puts /skill:openspec-apply-change ${change.name} in the message box, and sends nothing`}
                 >
                     Apply
                 </button>
                 <button
                     class="button oss-action"
-                    onClick=${() => putInBox(`/skill:openspec-archive-change ${change.name}`)}
+                    onClick=${() => pocket.insertText(`/skill:openspec-archive-change ${change.name}`)}
                     title=${`Puts /skill:openspec-archive-change ${change.name} in the message box, and sends nothing`}
                 >
                     Archive
@@ -437,7 +427,7 @@ export default function setup(pocket) {
                 <span class="small muted">
                     ${shown === null ? "no reading yet" : ageText(shown.at)}${stale && html`<span class="oss-stale"> stale</span>`}
                 </span>
-                <button class="button" onClick=${refresh}>Refresh</button>
+                <button class="button" onClick=${() => void read()}>Refresh</button>
             </div>
             ${shown === null && html`<p class="small muted">The first reading is on its way.</p>`}
             ${failed && html`<p class="oss-error small">${shown.error.message}</p>`}
@@ -467,7 +457,6 @@ export default function setup(pocket) {
             short: "OpenSpec",
             title: "The OpenSpec project of this session's folder",
         });
-
     }
 
     // 1 new reading at once when the server says that this conversation may have changed. An event goes to each tab of
@@ -495,10 +484,9 @@ export default function setup(pocket) {
         document.addEventListener("visibilitychange", onVisibilityChange);
     }
 
-    if (present.status || present.panel) {
-        // 1 reading when the tab draws, and the poll starts there too (task 3.4).
-        void read();
-    }
+    // 1 reading at once when the tab draws, and the poll starts there too (task 3.4). The early return above reaches
+    // this line only when the app has the status item or the panel.
+    void read();
 
     // The app runs what the default export returns when this version of the module goes, so the timer and the 2
     // listeners of this tab go with it (docs/extensions/browser-modules.md, "The default export").

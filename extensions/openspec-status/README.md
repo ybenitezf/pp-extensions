@@ -41,8 +41,6 @@ standard error first and then its standard output. Both commands are read-only, 
 
 - **Lancet Guard does not see these 2 commands**, because the module starts them itself and not through Pi's `bash`
   tool. The module's description says that it runs `openspec` read-only, so read the code against that description.
-- The module also exports `openSpecVersion`, which runs `openspec --version` within 5 seconds. The reading never calls
-  it: it is there for a check without a live session.
 
 ## Where it reads
 
@@ -51,8 +49,9 @@ The browser sends only the session's id; the server does the reading.
 - The browser part polls `GET status/<conversationId>` through `pocket.api`. The module registers that path as the route
   `GET status/:source`, a `conversationRoute` with `{ conversation: "source" }`, so the app finds the session and checks
   that the person may see it before the handler runs. No request can name a folder.
-- The route answers `{ project, changes, at, error }`: `project` is `null` when the folder is no OpenSpec project,
-  `changes` has 1 entry for each active change, `at` is the time of the reading, `error` is `null` or the reason.
+- The route answers `{ project, changes, at, error }`: `project` is the absolute path of the project root, or `null`
+  when the folder is no OpenSpec project, `changes` has 1 entry for each active change, `at` is the time of the reading,
+  and `error` is `null` or the reason.
 - The browser part is registered with `web.client("openspec-status")`, which resolves the folder `openspec-status/`
   beside the module file: `index.js` draws, and `look.css` styles.
 - **The project root**: the session's folder when it holds `openspec/changes/`; else the top level of its git
