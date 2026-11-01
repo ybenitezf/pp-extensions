@@ -1,11 +1,6 @@
 /*
- * OpenSpec status: the panel beside the conversation (design.md decision 7).
- *
- * It is drawn at a phone's width first: 1 column, no fixed width, and every text wraps. Only the CSS names that Pi
- * Pocket keeps for extensions are used here: the tokens --text, --muted, --line, --ok, and --warn, and no other token
- * (docs/extensions/reference/theme-surface.md, "Extensions' CSS names"; docs/extensions/browser-modules.md, "Look like
- * the app"). The classes below are this module's own, so they start with `oss-`, apart from the app's `small`, `muted`,
- * `mono`, and `button`.
+ * OpenSpec status: the panel beside the conversation, drawn at a phone's width first (1 column, no fixed width).
+ * Only the Pi Pocket tokens --text, --muted, --line, --ok, and --warn, plus this module's own `oss-` classes.
  */
 
 /* The panel: the app's panel body already pads and scrolls, so this adds only the spacing between the rows. */
@@ -27,7 +22,7 @@
     min-width: 0;
 }
 
-/* A reading that is more than 1 minute old, or that failed after a good 1: var(--warn) (task 3.5; decision 7). */
+/* A reading that is more than 1 minute old, or that failed after a good 1. */
 .oss-stale {
     color: var(--warn);
     font-weight: 600;
@@ -91,7 +86,7 @@
     background: var(--muted);
 }
 
-/* Done, ready, and blocked: var(--ok), var(--muted), and var(--warn) (design.md decision 7). */
+/* Done, ready, and blocked: var(--ok), var(--muted), and var(--warn). */
 .oss-mark[data-status="done"] {
     color: var(--text);
 }
@@ -162,9 +157,7 @@
     flex: none;
 }
 
-/* The buttons of 1 change: its 2 skill commands in rows that wrap, so a phone never scrolls sideways to reach them.
-   They keep the app's `button` look, with a slightly smaller font, and the gap between them is small (task 6.1;
-   spec.md, "The panel offers the change's next action as a message"). */
+/* The buttons of 1 change: rows that wrap, so a phone never scrolls sideways to reach them. */
 .oss-actions {
     display: flex;
     flex-wrap: wrap;

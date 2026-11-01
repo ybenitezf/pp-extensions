@@ -1,7 +1,7 @@
 # openspec-status
 
 Shows the OpenSpec project of the session's folder in Pi Pocket: a status item under the message box for the glance,
-and a panel beside the conversation for the detail. The module only reads, and it runs 2 read-only commands.
+and a panel beside the conversation for the detail. The module only reads.
 
 Install: copy `openspec-status.ts` and the folder `openspec-status/` into the drop-in folder, `$PI_POCKET_DIR/extensions`
 (or `~/.pi-pocket/extensions` when `PI_POCKET_DIR` is not set), with Playbook 1 of
@@ -9,8 +9,8 @@ Install: copy `openspec-status.ts` and the folder `openspec-status/` into the dr
 
 ## What it shows
 
-1 **status item** under the message box, id `status` (`ext:openspec-status:status`), and 1 **panel** beside the
-conversation, id `detail`, title `OpenSpec`. The item gives the change's name and its task counter `done/total` for 1
+The status item has id `status` (`ext:openspec-status:status`); the panel has id `detail` and title
+`OpenSpec`. The item gives the change's name and its task counter `done/total` for 1
 active change, the count of changes and the summed counter for several (`3 changes · 12/20`), `no active change · 0/0`
 for an OpenSpec project that holds no active change, `OpenSpec command not found` in the warning tone when the command
 is absent, and `OpenSpec failed` in the warning tone when a reading failed and there is no earlier number to keep. The
@@ -37,7 +37,7 @@ become a second command. The runner never throws: a command that is absent, too 
 person. A missing `openspec` answers kind `not-found` with the words
 `openspec command not found on this machine (ENOENT)`; a command that ran past its limit answers
 `openspec command did not answer within 10000 ms, so it was stopped`; a non-zero exit keeps the command's own words, its
-standard error first and then its standard output. Both commands are read-only, and the module writes no OpenSpec file.
+standard error first and then its standard output. The module writes no OpenSpec file.
 
 - **Lancet Guard does not see these 2 commands**, because the module starts them itself and not through Pi's `bash`
   tool. The module's description says that it runs `openspec` read-only, so read the code against that description.
@@ -65,15 +65,14 @@ The browser sends only the session's id; the server does the reading.
   most 1,000 checkbox lines are counted in each group. A `tasks.md` that is missing or cannot be read gives `0/0` and no
   group, which is no failure.
 - **The server keeps 1 short-lived cache**, keyed by project root, for 2 seconds: 2 tabs of 1 session, or 2 sessions in
-  the same folder, share 1 reading. A good reading made less than 2 seconds ago is answered again without a 2nd run, and
-  a reading with an error is never answered from that window. When a reading fails after a good 1, the route answers the
+  the same folder, share 1 reading. A reading with an error is never answered from
+  that window. When a reading fails after a good 1, the route answers the
   good reading's `project`, `changes`, and `at` with the new `error` beside them.
 
 ## When it reads
 
 - **Once when the tab draws**, then on a fallback timer: 30 seconds while a reading changed something, 30 seconds more
-  each time that it did not, and 120 seconds at most. A reading that changes the answer sets the timer back to 30
-  seconds.
+  each time that it did not, and 120 seconds at most.
 - **At once** when the server sends the `changed` event of this conversation, and at once when a person uses the panel's
   `Refresh` button.
 - **Never while the tab is hidden.** The tab reads 1 time when it becomes visible again.
@@ -97,8 +96,7 @@ rule for an empty `changes` list, so a project with no active change shows the s
 
 ## Checked in Pi Pocket
 
-With the module turned on in Pi Pocket, each state was checked in a live session and confirmed by the owner. Folders are
-named by a word and not by a path of a machine.
+With the module turned on in Pi Pocket, each state was checked in a live session and confirmed by the owner.
 
 | State | Where the session's folder was | The item's exact text | What the panel showed |
 | --- | --- | --- | --- |
@@ -110,12 +108,12 @@ named by a word and not by a path of a machine.
 | A folder that is no OpenSpec project | `<folder that is no project>` | no item: it was removed | the muted line `No active change.` |
 
 2 checks put the command itself out of order, and both were restored. The `openspec` command was first removed from the
-PATH of the server process, which gave the `not found` row above, and the item then read `OpenSpec command not found`; the
-command was then put back as its original link and checked by its hash. Next it was replaced by a stand-in that exited
+PATH of the server process, which gave the `not found` row above; the command was then put back as its original link and
+checked by its hash. Next it was replaced by a stand-in that exited
 `1`, which gave the failed-command row above; the command was put back again and checked. After the restore the item
 returned to `add-openspec-status · 11/18`, so the module recovers from both failures without a restart.
 
-2 more facts were confirmed live. A change to a `tasks.md` reached the open tab almost at once, which is the `changed`
+2 more facts were confirmed live: a change to a `tasks.md` reached the open tab almost at once, which is the `changed`
 event path and not the 30-second poll. The 1st poll step was watched over several minutes, and the owner confirmed that
 `3.4` works as intended.
 
@@ -124,8 +122,7 @@ the panel still shows its muted line `No active change.` instead of saying that 
 
 ### The 2 checks that ran by substitute
 
-The literal command of tasks 2.5 and 2.6 could not run on the machine that held the module. Each check below states what
-the task asked to run, why that exact command could not run, and what was run instead with its result.
+The literal command of tasks 2.5 and 2.6 could not run on the machine that held the module.
 
 **Task 2.5** — the route `GET status/:source`, read with `curl` on 2 sessions.
 
@@ -144,11 +141,9 @@ the task asked to run, why that exact command could not run, and what was run in
   no log file of it can be read.
 - **What ran instead:** a test stub that fired `run.ended` 10 times within about 1 second, and the module sent `changed`
   exactly 1 time. A foreign conversation produced 0 sends, and a write outside `openspec/` and a `bash` call that does
-  not mention `openspec` each produced 0 sends. In the live app a change of a task counter reached the open tab almost
-  at once, which the 30-second poll cannot explain.
+  not mention `openspec` each produced 0 sends.
 
-The owner accepted the substitute for both checks. Task 6.1, the action buttons, is delivered, and the check of
-them in the app is recorded below.
+The owner accepted the substitute for both checks. Task 6.1, the action buttons, is delivered.
 
 ### The action buttons
 
@@ -239,8 +234,6 @@ Both commands exit 0 in this folder.
 
 ## Fields the module needs
 
-1 row for each field: the field, its JSON path in the `--all` answer, and whether the answer has it.
-
 | Field the module needs | JSON path in the `--all` answer | In the `--all` answer |
 | --- | --- | --- |
 | change name | `changes[].changeName` | present |
@@ -260,16 +253,15 @@ Notes:
 - The answer carries more keys that this module does not need: `changes[].planningHome`, `changes[].changeRoot`,
   `changes[].artifactPaths`, `changes[].isPlanningComplete`, `changes[].isComplete`, `changes[].nextSteps`,
   `changes[].actionContext`, and the top-level `root`.
-- No key in the answer gives a task counter or a task group, so the module reads `tasks.md` from disk for both, as
-  `design.md` decision 2 says. The count is the checkbox lines that start with `- [x]` against all checkbox lines.
+- The module reads `tasks.md` from disk for both, as `design.md` decision 2 says. The count is the checkbox lines
+  that start with `- [x]` against all checkbox lines.
 
 ## The `--change <name>` fallback
 
 `openspec status --change "add-openspec-status" --json` gives 12 top-level keys: the 11 keys of 1 row of the `--all`
 answer, with the change as the top-level object (`changeName`, `schemaName`, `applyRequires`, `artifacts[]` with
 `status` for each, and the rest), plus the top-level `root`.
-The fallback does **not** give a task counter, because that key is missing from both forms, so a reading of `tasks.md` on
-disk is necessary with either form.
+The fallback does **not** give a task counter, because that key is missing from both forms.
 
 `design.md` decision 2 names that command as the fallback for a row of the `--all` answer that lacks a field. This
 version of the module does not call it: the 1 reading runs `openspec status --all --json` and no `--change` command, and
@@ -280,8 +272,7 @@ own default instead: no name drops the change, no schema shows no schema, and no
 
 All 3 commands were run on this machine with `openspec` 1.15.0. Every one of them exited 0 and wrote nothing to
 stderr, so a non-zero exit is **not** what tells the 3 cases apart: the JSON keys are. The answer of case 1 is the
-sample above, which is verbatim apart from its `...` cuts and its `<…>` path words; the answers of cases 2 and 3 are
-quoted in full below.
+sample above; the answers of cases 2 and 3 are quoted in full below.
 
 | Case | Exact exit code | Exact words of the answer | JSON key that shows the case |
 | --- | --- | --- | --- |
@@ -321,8 +312,7 @@ Notes:
 
 - The 2 answers differ in 1 key only: `root.source`, `"nearest"` against `"implicit"`. `"implicit"` is what makes
   case 3 case 3, so the module must read `root.source` and must not treat an empty `changes` list as "no project".
-- Case 3 carries no error and no exit code that differs from case 1, so the module cannot use the exit code for this.
-  `root.source`, or the `stat(<root>/openspec/changes)` of `design.md` decision 4, is the only way.
+- `root.source`, or the `stat(<root>/openspec/changes)` of `design.md` decision 4, is the only way.
 - The top-level keys of the 3 answers: case 1 has `["changes","root"]`, and cases 2 and 3 have
   `["changes","message","root"]`. The `message` key `"No active changes."` is there in both of the empty cases, so
   it also does not tell them apart.
@@ -337,15 +327,14 @@ Notes:
    browser part draws neither the item nor the panel.
 2. **The `openspec` command must be on the machine's PATH for the server process.** The module runs it itself, so the
    PATH that the server got (a service may have one that differs from a shell's) is the one that counts. Without the
-   command there is no project to show: the item says `OpenSpec command not found` in the warning tone. The `git`
-   command is needed too, but only to find the project root of a session that runs in a subfolder: without `git` the
+   command there is no project to show. The `git` command is needed too, but only to find the project root of a
+   session that runs in a subfolder: without `git` the
    module still shows a project that the session's own folder holds.
 
 ## Known narrow behaviours
 
-- **A tab that loads while it is hidden makes 1 reading.** The browser part reads 1 time when the tab draws, and its
-  poll then plans nothing while the tab is hidden, so no 2nd reading follows until the tab becomes visible.
+- **A tab that loads while it is hidden makes 1 reading.** Its poll plans nothing while the tab is hidden, so no 2nd
+  reading follows until the tab becomes visible.
 - **A failed reading with no earlier number shows only the error words.** When the route answers an error with an empty
   `changes` list, and the server's 2-second cache holds no earlier good reading of that project root, the panel shows
-  the command's words and no change row, and the item says `OpenSpec failed` in the warning tone. A failed reading after
-  a good 1 keeps the good numbers instead, marked `stale`.
+  the command's words and no change row; the item says `OpenSpec failed` in the warning tone.
