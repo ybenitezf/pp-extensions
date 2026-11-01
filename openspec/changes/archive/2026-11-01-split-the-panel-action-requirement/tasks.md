@@ -9,7 +9,7 @@
 
 ## 2. The checks
 
-- [ ] 2.1 run `openspec validate --all` and confirm that the warning about a long requirement is gone
+- [x] 2.1 run `openspec validate --all` and confirm that the warning about a long requirement is gone
 - [x] 2.2 confirm that the 2 requirements name the same behavior that `extensions/openspec-status/openspec-status/index.js`
   has: `pocket.insertText` for apply and archive, and no other button for a change
-- [ ] 2.3 archive this change, so that `openspec/specs/openspec-status/spec.md` takes the 2 requirements
+- [x] 2.3 archive this change, so that `openspec/specs/openspec-status/spec.md` takes the 2 requirements
