@@ -75,6 +75,77 @@
                 "client": null,
                 "access": "owner"
             }
+        },
+        {
+            "name": "pty-terminal",
+            "title": "A real terminal in a panel, with a shell on the server",
+            "description": "A real terminal in 1 panel: a shell in a pseudo-terminal on the server, drawn by a vendored xterm renderer.",
+            "tags": ["terminal", "pty", "shell", "xterm", "panel", "browser"],
+            "author": {
+                "name": "ybenitezf",
+                "github": "ybenitezf"
+            },
+            "version": "0.1.0",
+            "source": {
+                "repo": "ybenitezf/pp-extensions",
+                "commit": "5250def37cc17b47c4cd09391d3d481d351694e9",
+                "path": "extensions/pty-terminal"
+            },
+            "files": [
+                {
+                    "name": "pty-terminal.ts",
+                    "sha256": "26ff78b4eb404d3725317b0a6a54f84f0cb66669ea3bac9ffce76707bbf4c12e",
+                    "size": 28341
+                },
+                {
+                    "name": "pty-terminal/index.js",
+                    "sha256": "b6f25bdfd78bbb8a5d5d120e62c5c4905fce78cb30a5b971c538bf907497ae53",
+                    "size": 16391
+                },
+                {
+                    "name": "pty-terminal/pty-helper.pl",
+                    "sha256": "0580d66e111e74da88a4b5fdc76f3f1a7634a301f70b9891949a92c550011eab",
+                    "size": 12287
+                },
+                {
+                    "name": "pty-terminal/css/xterm.css",
+                    "sha256": "854a7c0fb70e8b1a083c16797ab827299fb18744f5ad34f227b48337e33293c6",
+                    "size": 7112
+                },
+                {
+                    "name": "pty-terminal/lib/xterm.mjs",
+                    "sha256": "b336ec65a086c056d4804b3d4c2347da5663d3f23c3f25be866467bd8857ad59",
+                    "size": 344970
+                },
+                {
+                    "name": "pty-terminal/lib/addon-fit.mjs",
+                    "sha256": "2d87e1bddc73be9111de8beee5370c3bb7aac9c94e18e6f245f02ca741ef1769",
+                    "size": 1967
+                },
+                {
+                    "name": "pty-terminal/LICENSE-xterm",
+                    "sha256": "b569f629d00f2626a8100df2a1798210535621e42164dfd426a6fe5aac7b0ccd",
+                    "size": 1261
+                },
+                {
+                    "name": "pty-terminal/LICENSE-addon-fit",
+                    "sha256": "e256f01188af527e4d06d21d06fbf785ae9c50d4b328bf03cbe0ba7f0aa4228f",
+                    "size": 1103
+                }
+            ],
+            "pocketApi": 1,
+            "minPocket": "0.19.0",
+            "declares": {
+                "extensions": ["pty-terminal"],
+                "tools": [],
+                "readOnlyTools": [],
+                "hooks": [],
+                "sections": [],
+                "wraps": [],
+                "routes": ["GET :conversation/state", "POST :conversation/input"],
+                "client": "steer",
+                "access": "steer"
+            }
         }
     ]
 }
