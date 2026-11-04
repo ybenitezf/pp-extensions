@@ -1,19 +1,15 @@
 // The composer chip follows this conversation's durable orchestrator-mode state.
 export default function setup(pocket) {
     pocket.style("look.css");
-    let conversationId = null;
-    let modeOn = false;
+    let chip = null;
+    let modeOn = null;
     let busy = false;
     let requestVersion = 0;
 
-    const chip = pocket.composerButton({
-        id: "orchestrator-mode",
-        title: "Orchestrator mode: Off",
-        icon: "shield",
-        run: () => toggle(),
-    });
     function render() {
-        const modeLabel = modeOn ? "On" : "Off";
+        if (chip === null) return;
+
+        const modeLabel = modeOn === true ? "On" : "Off";
         const updating = busy ? " (updating…)" : "";
 
         chip.update({
@@ -21,48 +17,75 @@ export default function setup(pocket) {
         });
     }
 
+    function addChip() {
+        if (chip !== null) return;
+
+        chip = pocket.composerButton({
+            id: "orchestrator-mode",
+            title: "Orchestrator mode: Off",
+            icon: "shield",
+            run: () => toggle(),
+        });
+    }
+
+    function removeChip() {
+        if (chip === null) return;
+
+        chip.remove();
+        chip = null;
+    }
+
+    function isSession(value) {
+        return value !== null && typeof value === "object" && value.session === true;
+    }
+
     function isOn(value) {
         return value !== null && typeof value === "object" && value.on === true;
     }
 
-    async function sync() {
+    async function syncMembership() {
         const id = pocket.conversationId();
         const version = ++requestVersion;
 
-        if (id !== conversationId) {
-            conversationId = id;
-            modeOn = false;
-            render();
+        if (id === null) {
+            removeChip();
+            modeOn = null;
+            return;
         }
-        if (id === null) return;
 
         try {
+            const membership = await pocket.api(`session/${id}`);
+            if (version !== requestVersion || id !== pocket.conversationId()) return;
+
+            if (!isSession(membership)) {
+                removeChip();
+                modeOn = false;
+                return;
+            }
+
+            addChip();
             const state = await pocket.api(`mode/${id}`);
             if (version === requestVersion && id === pocket.conversationId()) {
                 modeOn = isOn(state);
                 render();
             }
         } catch {
-            // Keep the last known state when a refresh fails.
+            // Keep the current chip and state when membership or mode refresh fails.
         }
     }
 
     async function toggle() {
         const id = pocket.conversationId();
-        if (id === null) {
-            pocket.notify("warning", "Cannot toggle orchestrator mode: no conversation is open.");
-            return;
-        }
+        if (chip === null || id === null) return;
         if (busy) return;
 
         ++requestVersion;
-        conversationId = id;
         busy = true;
         render();
 
         try {
             const state = await pocket.api(`mode/${id}`, {}, { method: "POST" });
-            if (id === pocket.conversationId()) {
+            if (id === pocket.conversationId() && chip !== null) {
                 modeOn = isOn(state);
             }
         } catch (error) {
@@ -70,26 +93,26 @@ export default function setup(pocket) {
             pocket.notify("error", `Could not toggle orchestrator mode: ${message}`);
         } finally {
             busy = false;
-            render();
-            void sync();
+            if (id === pocket.conversationId()) render();
+            void syncMembership();
         }
     }
 
-    const stopConversation = pocket.onConversation(() => void sync());
+    const stopConversation = pocket.onConversation(() => void syncMembership());
     const stopChanged = pocket.on("changed", (data) => {
         if (
-            !busy &&
             data !== null &&
             typeof data === "object" &&
             data.conversationId === pocket.conversationId()
         ) {
-            void sync();
+            void syncMembership();
         }
     });
 
-    void sync();
+    void syncMembership();
 
     return () => {
+        removeChip();
         stopConversation();
         stopChanged();
     };

@@ -1,7 +1,15 @@
 /** Read-only orchestration mode: read context and delegate work without changing files in the orchestrator. */
 import { defineDoc, defineExtension, hook, section, ToolTask } from "@earendil-works/pi-durable";
 import type { ToolExecutionApi } from "@earendil-works/pi-durable";
-import type { CommandContext, ConversationWebRequest, Host, Web } from "./_pocket.d.ts";
+import type {
+    CommandContext,
+    ConversationWebRequest,
+    Host,
+    Person,
+    Web,
+    WebRequest,
+    WebSession,
+} from "./_pocket.d.ts";
 
 type ModeState = {
     on: boolean;
@@ -20,6 +28,25 @@ const OrchestratorModeDoc = defineDoc<ModeState>({
     initial: () => ({ on: false, by: { id: "", name: "" }, at: "" }),
     checkpointWhen: () => false,
 });
+
+// Commands have no session list, so this cache carries route membership; a subagent id can never enter it.
+const sessionIdsByPerson = new Map<string, Set<number>>();
+
+function rememberSessions(user: Person, sessions: readonly WebSession[]): Set<number> {
+    const ids = new Set(sessions.map((session) => session.id));
+    sessionIdsByPerson.set(user.id, ids);
+    return ids;
+}
+
+function readSession(request: WebRequest): { session: boolean } {
+    const id = Number(request.params.id);
+    const sessionIds = rememberSessions(request.user, request.sessions());
+    return { session: Number.isInteger(id) && sessionIds.has(id) };
+}
+
+function isSession(personId: string, conversationId: number): boolean {
+    return sessionIdsByPerson.get(personId)?.has(conversationId) === true;
+}
 
 const ALLOWED_TOOLS = new Set([
     "read",
@@ -144,6 +171,14 @@ function installCommand(web: Web): void {
         description: "Toggle read-only orchestration for this conversation",
         scope: "conversation",
         handler: async (_args, context) => {
+            if (!isSession(context.user.id, context.conversationId)) {
+                return {
+                    type: "toast",
+                    level: "warning",
+                    message: "Orchestrator mode applies to the main session. Nothing changed.",
+                };
+            }
+
             const state = await toggleMode(context.commit, context.conversationId, context.user);
             publishChange(web, context.conversationId);
             return {
@@ -196,6 +231,7 @@ const modeGate = hook(ToolTask, {
 export default function createOrchestratorMode(_host: Host, web: Web) {
     web.client("orchestrator-mode");
 
+    web.route("GET", "session/:id", readSession, { access: "view" });
     web.conversationRoute("GET", "mode/:conversationId", readMode, { conversation: "conversationId" });
     web.conversationRoute(
         "POST",
