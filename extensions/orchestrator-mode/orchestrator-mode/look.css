@@ -1,0 +1,11 @@
+/* Give only this module's composer button the Plan chip's border and pill. */
+[data-module="orchestrator-mode"][data-part~="composer-button"] {
+    border: 1px solid var(--hair-2);
+    border-radius: var(--r-pill);
+}
+
+[data-module="orchestrator-mode"][data-part~="composer-button"][title*=": On"] {
+    border-color: var(--accent-line);
+    background: var(--accent-soft);
+    color: var(--accent);
+}
