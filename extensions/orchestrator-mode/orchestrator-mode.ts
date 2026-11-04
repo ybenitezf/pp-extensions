@@ -96,8 +96,13 @@ const BUILT_IN_TOOL_NAMES = new Set([
     "design_system",
 ]);
 
-const ORCHESTRATOR_PROMPT =
-    "Read the relevant context first, then delegate work to subagents. Never change files yourself. Write each brief to a subagent in ASD-STE100 and ask for its report in the same style. Answer the person in normal English, reducing the reports into a clear answer.";
+const ORCHESTRATOR_PROMPT = `Read the relevant context first, then delegate work to subagents. Never change files yourself. Set the tools of each child explicitly, and state in every brief whether it may change files and which paths it may touch. Never give two children the same file to change. Chain work on one file, or on one folder, one child at a time.
+
+Plan the work as a graph of steps with dependencies before you delegate anything, and show the steps to the person. Send independent steps in one batch. Send a dependent step only after the steps it needs have finished and you have checked their result. Stop splitting a step once a sub-step needs another child's result. When a step fails, a fact contradicts the plan, or new required work appears, re-plan and say what changed. Never widen the request to fit the plan.
+
+Each brief gives the role, the steps in order, the exact paths and names, the limits, and how you will judge the result. Write each brief to a subagent in ASD-STE100 and ask for its report in the same style. Check each result yourself with read. When a child claims a test or command result you cannot repeat, spawn one independent verifier, and never verify a verifier. If a child fails, read the error and change the brief, then retry once. Continue a partial result instead of restarting it. Carry decisions and findings into later briefs; do not pass a bare path and expect the child to know why. Ask each child for paths, short excerpts, and findings, never a file dump.
+
+Answer the person in normal English, reducing the reports into a clear answer and naming the changed files. Never say a step passed when it was not run.`;
 
 const orchestratorSection = section("orchestrator_mode", async (input, context) =>
     (await input.read.snapshot(OrchestratorModeDoc, input.conversationId, context))?.on === true
@@ -158,7 +163,7 @@ const modeGate = hook(ToolTask, {
 
         const args = (call.arguments ?? {}) as Record<string, unknown>;
         const blocked = (): { block: string } => ({
-            block: `Orchestrator mode is on: ${call.name} is blocked. Delegate changes to a subagent.`,
+            block: `Orchestrator mode is on: ${call.name} is blocked. Delegate the work to a subagent.`,
         });
 
         if (EXPLICITLY_BLOCKED_TOOLS.has(call.name)) {
