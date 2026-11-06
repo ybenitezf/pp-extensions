@@ -60,6 +60,7 @@ const ALLOWED_TOOLS = new Set([
     "session_read",
     "design_preview",
     "secrets_list",
+    "memory",
 ]);
 
 // These named tools stay blocked even if a wrapper or module adds a read-only annotation.
@@ -79,7 +80,6 @@ const EXPLICITLY_BLOCKED_TOOLS = new Set([
     "watch_pr",
     "repo_watch",
     "session_watch_pr",
-    "memory",
     "approvals",
     "ask_someone",
     "secret_request",
