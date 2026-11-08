@@ -60,6 +60,8 @@ const ALLOWED_TOOLS = new Set([
     "session_read",
     "design_preview",
     "secrets_list",
+    "schedule",
+    "watch_pr",
     "memory",
 ]);
 
@@ -76,8 +78,6 @@ const EXPLICITLY_BLOCKED_TOOLS = new Set([
     "session_archive",
     "session_schedule",
     "team",
-    "schedule",
-    "watch_pr",
     "repo_watch",
     "session_watch_pr",
     "approvals",
