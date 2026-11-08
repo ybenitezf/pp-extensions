@@ -4,7 +4,7 @@
  * This file is the template. Copy its folder for each new extension, and read README.md in this folder to know what to
  * change. Change each name in "Names to change", at the end of this file.
  */
-import { Type } from "@earendil-works/pi-ai";
+import { obj, str } from "@earendil-works/pi-schema";
 import { defineExtension, defineTool } from "@earendil-works/pi-durable";
 import type { Web } from "./_pocket.d.ts";
 
@@ -18,11 +18,11 @@ function countWords(text: string): number {
     return text.split(/\s+/).filter((word) => word !== "").length;
 }
 
-// One tool. `parameters` uses `Type` from `@earendil-works/pi-ai`. `defineTool` comes from `@earendil-works/pi-durable`.
+// One tool. `parameters` uses builders from `@earendil-works/pi-schema`. `defineTool` comes from `@earendil-works/pi-durable`.
 const countWordsTool = defineTool({
     name: toolName,
     description: "Count the words in a text.",
-    parameters: Type.Object({ text: Type.String({ description: "The text to count" }) }),
+    parameters: obj({ text: str({ description: "The text to count" }) }),
     replay: "safe",
     execute: async (args) => ({
         output: [{ type: "text" as const, text: `${countWords(args.text)} words` }],
