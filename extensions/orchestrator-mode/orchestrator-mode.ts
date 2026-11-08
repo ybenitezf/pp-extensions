@@ -55,7 +55,6 @@ const ALLOWED_TOOLS = new Set([
     "tool_search",
     "codemode",
     "artifact",
-    "artifact_inline",
     "sessions",
     "session_read",
     "design_preview",
@@ -89,6 +88,7 @@ const EXPLICITLY_BLOCKED_TOOLS = new Set([
 ]);
 
 // Pi core and Pi Pocket built-in tool names. Keep this inventory aligned with the host's BUILT_IN_TOOLS set.
+// The host still keeps artifact_inline in its set as a reserved name since pi-pocket 0.28.0, so this set stays aligned.
 const BUILT_IN_TOOL_NAMES = new Set([
     "read",
     "write",
