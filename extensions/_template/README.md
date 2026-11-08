@@ -32,7 +32,7 @@ Menu → Extensions, group **Yours**. The other steps are in
 
 - The import of the types: `import type { Web } from "./_pocket.d.ts";`. Pi Pocket keeps `_pocket.d.ts` in the drop-in
   folder, beside the module. Do not copy it there, and do not remove it.
-- The import of the packages by name: `@earendil-works/pi-ai` and `@earendil-works/pi-durable`. The drop-in folder
+- The import of the packages by name: `@earendil-works/pi-schema` and `@earendil-works/pi-durable`. The drop-in folder
   gives these packages to the module. Do not touch `node_modules`.
 - `export default` on the function that returns `defineExtension`. Pi Pocket calls that function when it loads the
   module.

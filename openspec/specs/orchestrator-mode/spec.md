@@ -44,7 +44,7 @@ While orchestrator mode is on, the `orchestrator_mode` prompt section MUST tell 
 - **THEN** it gives a normal English answer that reduces the report
 
 ### Requirement: Allowlisted tools while mode is on
-While orchestrator mode is on, the system MUST allow only `read`, `subagent`, `ask`, `tool_search`, `codemode`, `artifact`, `sessions`, `session_read`, `design_preview`, `secrets_list`, `background` when its action is not `start`, and `memory`, plus non-built-in tools with `annotations.readOnlyHint === true`. It MUST block other tools. This gate applies at tool-call time and does not change the model's advertised tool list. The separate `memory` extension still holds each memory write for the owner's approval.
+While orchestrator mode is on, the system MUST allow only `read`, `subagent`, `ask`, `tool_search`, `codemode`, `artifact`, `sessions`, `session_read`, `design_preview`, `secrets_list`, `schedule`, `watch_pr`, `background` when its action is not `start`, and `memory`, plus non-built-in tools with `annotations.readOnlyHint === true`. It MUST block other tools. The gate follows the TARGET of a tool call: tools that act only on the current conversation may proceed, and tools that act on another session or on PiP stay blocked. This gate applies at tool-call time and does not change the model's advertised tool list. The separate `memory` extension still holds each memory write for the owner's approval.
 
 #### Scenario: An allowlisted tool is called
 - **WHEN** the orchestrator calls an allowlisted tool
@@ -75,7 +75,11 @@ While orchestrator mode is on, the system MUST allow only `read`, `subagent`, `a
 - **THEN** the call is blocked
 
 #### Scenario: Scheduling or watcher tools are called
-- **WHEN** the orchestrator calls `schedule`, `watch_pr`, `repo_watch`, or `session_watch_pr`
+- **WHEN** the orchestrator calls `schedule` or `watch_pr` in the current conversation while the mode is on
+- **THEN** the call proceeds
+
+#### Scenario: A scheduling or watcher tool targets another session or PiP
+- **WHEN** the orchestrator calls `session_schedule`, `session_watch_pr`, or `repo_watch`
 - **THEN** the call is blocked
 
 #### Scenario: State-changing tools are called
