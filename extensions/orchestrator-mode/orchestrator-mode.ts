@@ -1,5 +1,5 @@
 /** Read-only orchestration mode: read context and delegate work without changing files in the orchestrator. */
-import { defineDoc, defineExtension, hook, section, ToolTask } from "@earendil-works/pi-durable";
+import { defineDoc, defineExtension, hook, section, ToolTask, wrapSection } from "@earendil-works/pi-durable";
 import type { ToolExecutionApi } from "@earendil-works/pi-durable";
 import type {
     CommandContext,
@@ -123,19 +123,108 @@ const BUILT_IN_TOOL_NAMES = new Set([
     "design_system",
 ]);
 
+function isBlockedByMode(toolName: string): boolean {
+    if (EXPLICITLY_BLOCKED_TOOLS.has(toolName)) {
+        return true;
+    }
+
+    if (toolName === "background") {
+        return false;
+    }
+
+    if (ALLOWED_TOOLS.has(toolName)) {
+        return false;
+    }
+
+    return BUILT_IN_TOOL_NAMES.has(toolName);
+}
+
+function blockedToolMessage(toolName: string): string {
+    return `Orchestrator mode is on: ${toolName} is blocked. Orchestrator mode offers read-only tools only. A subagent can receive ${toolName} in its tools grant.`;
+}
+
 const ORCHESTRATOR_PROMPT = `Read the relevant context first, then delegate work to subagents. Never change files yourself. Set the tools of each child explicitly, and state in every brief whether it may change files and which paths it may touch. Never give two children the same file to change. Chain work on one file, or on one folder, one child at a time.
 
 Plan the work as a graph of steps with dependencies before you delegate anything, and show the steps to the person. Send independent steps in one batch. Send a dependent step only after the steps it needs have finished and you have checked their result. Stop splitting a step once a sub-step needs another child's result. When a step fails, a fact contradicts the plan, or new required work appears, re-plan and say what changed. Never widen the request to fit the plan.
 
 Each brief gives the role, the steps in order, the exact paths and names, the limits, and how you will judge the result. Write each brief to a subagent in ASD-STE100 and ask for its report in the same style. Check each result yourself with read. When a child claims a test or command result you cannot repeat, spawn one independent verifier, and never verify a verifier. If a child fails, read the error and change the brief, then retry once. Continue a partial result instead of restarting it. Carry decisions and findings into later briefs; do not pass a bare path and expect the child to know why. Ask each child for paths, short excerpts, and findings, never a file dump.
 
-Answer the person in normal English, reducing the reports into a clear answer and naming the changed files. Never say a step passed when it was not run.`;
+Answer the person in normal English, reducing the reports into a clear answer and naming the changed files. Never say a step passed when it was not run.
+
+Orchestrator mode offers read-only tools only, and a step that needs another tool goes into the tools grant of a subagent.`;
 
 const orchestratorSection = section("orchestrator_mode", async (input, context) =>
     (await input.read.snapshot(OrchestratorModeDoc, input.conversationId, context))?.on === true
         ? ORCHESTRATOR_PROMPT
         : undefined,
 );
+
+function stripBlockedDeferredTools(text: string): string {
+    return text
+        .split("\n")
+        .filter((line) => {
+            const match = /^- ([A-Za-z0-9][A-Za-z0-9_-]*): /.exec(line);
+            if (match === null) {
+                return true;
+            }
+
+            return !isBlockedByMode(match[1].trim());
+        })
+        .join("\n");
+}
+
+function stripBlockedCodemode(text: string): string {
+    const kept: string[] = [];
+
+    for (const paragraph of text.split("\n\n")) {
+        const block = /^## ([A-Za-z0-9][A-Za-z0-9_-]*)$/.exec(paragraph.split("\n")[0]);
+        if (block !== null) {
+            if (!isBlockedByMode(block[1])) {
+                kept.push(paragraph);
+            }
+            continue;
+        }
+
+        const trailing = /^Also callable, not listed: (.+)$/.exec(paragraph);
+        if (trailing !== null) {
+            const remaining = trailing[1]
+                .split(",")
+                .map((name) => name.trim())
+                .filter((name) => name.length > 0 && !isBlockedByMode(name));
+            if (remaining.length > 0) {
+                kept.push(`Also callable, not listed: ${remaining.join(", ")}`);
+            }
+            continue;
+        }
+
+        kept.push(paragraph);
+    }
+
+    return kept.join("\n\n");
+}
+
+function filteredOfferSection(key: string, strip: (text: string) => string) {
+    return wrapSection(key, (inner) => ({
+        ...inner,
+        render: async (input, context) => {
+            const text = await inner.render(input, context);
+            if (text === undefined) {
+                return undefined;
+            }
+
+            const state = await input.read.snapshot(OrchestratorModeDoc, input.conversationId, context);
+            if (state?.on !== true) {
+                return text;
+            }
+
+            const filtered = strip(text);
+            return filtered.length === 0 ? undefined : filtered;
+        },
+    }));
+}
+
+const deferredToolsOffer = filteredOfferSection("deferred_tools", stripBlockedDeferredTools);
+const codemodeOffer = filteredOfferSection("codemode", stripBlockedCodemode);
 
 async function toggleMode(
     commit: CommandContext["commit"],
@@ -198,10 +287,10 @@ const modeGate = hook(ToolTask, {
 
         const args = (call.arguments ?? {}) as Record<string, unknown>;
         const blocked = (): { block: string } => ({
-            block: `Orchestrator mode is on: ${call.name} is blocked. Delegate the work to a subagent.`,
+            block: blockedToolMessage(call.name),
         });
 
-        if (EXPLICITLY_BLOCKED_TOOLS.has(call.name)) {
+        if (isBlockedByMode(call.name)) {
             return blocked();
         }
 
@@ -213,11 +302,7 @@ const modeGate = hook(ToolTask, {
             return undefined;
         }
 
-        // Built-ins fail closed; only non-built-in tools can grant access with readOnlyHint.
-        if (BUILT_IN_TOOL_NAMES.has(call.name)) {
-            return blocked();
-        }
-
+        // The predicate fails closed for built-ins; only a non-built-in tool reaches this read-only check.
         // ToolTask supplies this runtime even though HookApi omits agent from its public type.
         const runtime = api as typeof api & Partial<Pick<ToolExecutionApi, "agent">>;
         const tool = (await runtime.agent?.(context))?.tools.find((candidate) => candidate.name === call.name) as
@@ -244,6 +329,7 @@ export default function createOrchestratorMode(_host: Host, web: Web) {
     return defineExtension({
         name: "orchestrator-mode",
         sections: [orchestratorSection],
+        wraps: [deferredToolsOffer, codemodeOffer],
         hooks: [modeGate],
     });
 }
