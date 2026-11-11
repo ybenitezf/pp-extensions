@@ -25,9 +25,47 @@ const OrchestratorModeDoc = defineDoc<ModeState>({
     scope: "conversation",
     history: "latest",
     fork: "initial",
-    initial: () => ({ on: false, by: { id: "", name: "" }, at: "" }),
+    initial: () => ({ on: true, by: { id: "", name: "" }, at: "" }),
     checkpointWhen: () => false,
 });
+
+// The read path carries the default: a conversation with no stored state is in the mode (design D1).
+function isOnByState(state: ModeState | undefined): boolean {
+    return state?.on !== false;
+}
+
+const SUBAGENT_INSTRUCTIONS_PREFIX = 'You are the subagent "';
+const MAX_SUBAGENT_CONVERSATION_IDS = 2000;
+
+// A Set keeps insertion order, so the first id is the oldest one. A reload empties this Set, and the instructions
+// prefix alone answers then.
+const subagentConversationIds = new Set<number>();
+
+function rememberSubagentConversation(conversationId: number): void {
+    if (subagentConversationIds.has(conversationId)) {
+        return;
+    }
+
+    if (subagentConversationIds.size >= MAX_SUBAGENT_CONVERSATION_IDS) {
+        for (const oldest of subagentConversationIds) {
+            subagentConversationIds.delete(oldest);
+            break;
+        }
+    }
+
+    subagentConversationIds.add(conversationId);
+}
+
+// The prefix is the text that Pi Pocket writes in /app/src/server/extensions/subagents.ts when it makes a child.
+function isSubagentConversation(
+    conversationId: number,
+    agent: { readonly instructions?: string } | undefined,
+): boolean {
+    return (
+        subagentConversationIds.has(conversationId) ||
+        agent?.instructions?.startsWith(SUBAGENT_INSTRUCTIONS_PREFIX) === true
+    );
+}
 
 // Commands have no session list, so this cache carries route membership; a subagent id can never enter it.
 const sessionIdsByPerson = new Map<string, Set<number>>();
@@ -153,11 +191,14 @@ Answer the person in normal English, reducing the reports into a clear answer an
 
 Orchestrator mode offers read-only tools only, and a step that needs another tool goes into the tools grant of a subagent.`;
 
-const orchestratorSection = section("orchestrator_mode", async (input, context) =>
-    (await input.read.snapshot(OrchestratorModeDoc, input.conversationId, context))?.on === true
-        ? ORCHESTRATOR_PROMPT
-        : undefined,
-);
+const orchestratorSection = section("orchestrator_mode", async (input, context) => {
+    if (isSubagentConversation(input.conversationId, input.agent)) {
+        return undefined;
+    }
+
+    const state = await input.read.snapshot(OrchestratorModeDoc, input.conversationId, context);
+    return isOnByState(state) ? ORCHESTRATOR_PROMPT : undefined;
+});
 
 function stripBlockedDeferredTools(text: string): string {
     return text
@@ -212,8 +253,13 @@ function filteredOfferSection(key: string, strip: (text: string) => string) {
                 return undefined;
             }
 
+            // A subagent keeps the offers as their source sections render them.
+            if (isSubagentConversation(input.conversationId, input.agent)) {
+                return text;
+            }
+
             const state = await input.read.snapshot(OrchestratorModeDoc, input.conversationId, context);
-            if (state?.on !== true) {
+            if (!isOnByState(state)) {
                 return text;
             }
 
@@ -246,7 +292,7 @@ function publishChange(web: Web, conversationId: number): void {
 
 async function readMode(request: ConversationWebRequest): Promise<{ on: boolean }> {
     const state = await request.snapshot(OrchestratorModeDoc, request.conversation.id, request.context);
-    return { on: state?.on === true };
+    return { on: isOnByState(state) };
 }
 
 async function toggleFromRoute(request: ConversationWebRequest, web: Web): Promise<{ on: boolean }> {
@@ -281,7 +327,14 @@ function installCommand(web: Web): void {
 
 const modeGate = hook(ToolTask, {
     beforeTool: async (call, api, context) => {
-        if ((await api.snapshot(OrchestratorModeDoc, api.conversationId, context))?.on !== true) {
+        // ToolTask supplies this runtime even though HookApi omits agent from its public type. Read it once per call.
+        const runtime = api as typeof api & Partial<Pick<ToolExecutionApi, "agent">>;
+        const agent = await runtime.agent?.(context);
+        if (isSubagentConversation(api.conversationId, agent)) {
+            return undefined;
+        }
+
+        if (!isOnByState(await api.snapshot(OrchestratorModeDoc, api.conversationId, context))) {
             return undefined;
         }
 
@@ -303,9 +356,7 @@ const modeGate = hook(ToolTask, {
         }
 
         // The predicate fails closed for built-ins; only a non-built-in tool reaches this read-only check.
-        // ToolTask supplies this runtime even though HookApi omits agent from its public type.
-        const runtime = api as typeof api & Partial<Pick<ToolExecutionApi, "agent">>;
-        const tool = (await runtime.agent?.(context))?.tools.find((candidate) => candidate.name === call.name) as
+        const tool = agent?.tools.find((candidate) => candidate.name === call.name) as
             | { annotations?: { readOnlyHint?: boolean } }
             | undefined;
 
@@ -313,7 +364,19 @@ const modeGate = hook(ToolTask, {
     },
 });
 
-export default function createOrchestratorMode(_host: Host, web: Web) {
+export default function createOrchestratorMode(host: Host, web: Web) {
+    // host.on is experimental since Pi Pocket 0.22.0, so the module works without it: the instructions prefix answers
+    // alone when the listener is absent.
+    if (typeof host.on === "function") {
+        web.onDispose(
+            host.on("run.started", ({ conversationId, session }) => {
+                if (conversationId !== session) {
+                    rememberSubagentConversation(conversationId);
+                }
+            }),
+        );
+    }
+
     web.client("orchestrator-mode");
 
     web.route("GET", "session/:id", readSession, { access: "view" });
