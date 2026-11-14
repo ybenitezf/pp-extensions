@@ -68,7 +68,7 @@ A subagent conversation MUST stay out of orchestrator mode. Its prompt MUST NOT 
 - **THEN** the gate does not filter the call
 
 ### Requirement: Orchestrator mode prompt
-The system MUST include the orchestrator-mode prompt section only while the mode is on. The section MUST direct the orchestrator to read and delegate, and never change files itself.
+The system MUST include the orchestrator-mode prompt section only while the mode is on. The section MUST direct the orchestrator to read and delegate, and never change files itself. The section MUST NOT require the orchestrator to set each child's tools explicitly. Each brief MUST state whether the child may change files and which paths it may touch.
 
 #### Scenario: Prompt section is enabled
 - **WHEN** the conversation has orchestrator mode on
@@ -77,6 +77,14 @@ The system MUST include the orchestrator-mode prompt section only while the mode
 #### Scenario: Prompt section is disabled
 - **WHEN** the conversation has orchestrator mode off
 - **THEN** its prompt does not include the orchestrator-mode section
+
+#### Scenario: Prompt does not mandate explicit child tool selection
+- **WHEN** the orchestrator-mode prompt section directs the orchestrator to delegate work
+- **THEN** it does not require the orchestrator to set each child's tools explicitly
+
+#### Scenario: Brief keeps file-change limits
+- **WHEN** the orchestrator prepares a brief for a child
+- **THEN** the brief states whether the child may change files and which paths it may touch
 
 ### Requirement: Simplified Technical English for delegated communication
 While orchestrator mode is on, the `orchestrator_mode` prompt section MUST tell the orchestrator to write each brief to a subagent in ASD-STE100 and ask for the report in the same style. The section MUST NOT restate Pi Pocket's own Simplified Technical English rules or replace the core `subagents` or `guidelines` sections. Simplified Technical English applies only to text between agents. The orchestrator MUST answer the person in normal English and reduce the reports into that answer.
