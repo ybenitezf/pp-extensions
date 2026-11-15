@@ -68,7 +68,7 @@ A subagent conversation MUST stay out of orchestrator mode. Its prompt MUST NOT 
 - **THEN** the gate does not filter the call
 
 ### Requirement: Orchestrator mode prompt
-The system MUST include the orchestrator-mode prompt section only while the mode is on. The section MUST direct the orchestrator to read and delegate, and never change files itself.
+The system MUST include the orchestrator-mode prompt section only while the mode is on. The section MUST direct the orchestrator to read and delegate, and never change files itself. The section MUST direct the orchestrator to omit the `tools` argument from every `subagent` call. Each brief MUST state whether the child may change files and which paths it may touch.
 
 #### Scenario: Prompt section is enabled
 - **WHEN** the conversation has orchestrator mode on
@@ -77,6 +77,14 @@ The system MUST include the orchestrator-mode prompt section only while the mode
 #### Scenario: Prompt section is disabled
 - **WHEN** the conversation has orchestrator mode off
 - **THEN** its prompt does not include the orchestrator-mode section
+
+#### Scenario: Subagent calls omit the tools argument
+- **WHEN** the orchestrator-mode prompt section directs the orchestrator to delegate work
+- **THEN** it omits the `tools` argument from every `subagent` call
+
+#### Scenario: Brief keeps file-change limits
+- **WHEN** the orchestrator prepares a brief for a child
+- **THEN** the brief states whether the child may change files and which paths it may touch
 
 ### Requirement: Simplified Technical English for delegated communication
 While orchestrator mode is on, the `orchestrator_mode` prompt section MUST tell the orchestrator to write each brief to a subagent in ASD-STE100 and ask for the report in the same style. The section MUST NOT restate Pi Pocket's own Simplified Technical English rules or replace the core `subagents` or `guidelines` sections. Simplified Technical English applies only to text between agents. The orchestrator MUST answer the person in normal English and reduce the reports into that answer.
@@ -153,6 +161,40 @@ While orchestrator mode is on, the system MUST allow the orchestrator to grant a
 #### Scenario: A child receives a wider tool grant
 - **WHEN** the orchestrator supplies a tool grant wider than its allowlist to a `subagent` call
 - **THEN** the built-in tool gives the child the supplied tool set
+
+### Requirement: Cost-aware subagent model selection
+While orchestrator mode is on, the orchestrator-mode prompt section MUST direct the orchestrator to prefer the lowest-cost owner-allowed model capable of a delegated task. It MUST select a higher-cost model only for a task-specific capability reason. It MUST treat unknown price as unknown, not cheap, and choose such a model only when its capabilities justify the uncertainty. It MUST NOT select outside the owner's allowlist or invent a cheaper alternative when none is available.
+
+#### Scenario: Cheaper allowed model fits a simple task
+- **WHEN** the orchestrator delegates a simple task and one owner-allowed model has lower known input and output prices than another allowed model for that task
+- **THEN** it chooses the lower-priced model
+
+#### Scenario: Higher-cost model chosen for a task-specific capability
+- **WHEN** a delegated task needs a capability that only a higher-cost owner-allowed model provides
+- **THEN** it chooses that higher-cost model and the reason is the task-specific capability need
+
+#### Scenario: Unknown price is not treated as cheap
+- **WHEN** an owner-allowed model has no known price and another allowed model has lower known prices for the expected task
+- **THEN** the orchestrator does not choose the unknown-price model solely because it might be cheap
+
+#### Scenario: No selection outside the allowlist
+- **WHEN** the cheapest capable model is not in the owner's allowlist
+- **THEN** the orchestrator chooses from the allowed models and does not invent an unallowed alternative
+
+### Requirement: Report planned subagent models
+The orchestrator-mode prompt section MUST direct the orchestrator to make the visible DAG/wave plan list the effective `provider/modelId` for every subagent spawn before dispatch. When `model` is omitted for a spawn, the plan MUST identify the effective current-session model for it. For any choice of a higher-cost or unknown-price model, the plan MUST include a brief task-specific capability reason.
+
+#### Scenario: Explicit model named before dispatch
+- **WHEN** the orchestrator sets `model` on a spawn and writes the DAG/wave plan before dispatch
+- **THEN** the plan lists that spawn's effective `provider/modelId`
+
+#### Scenario: Inherited session model identified
+- **WHEN** a spawn omits `model`
+- **THEN** the plan names the effective current-session model for that spawn
+
+#### Scenario: Higher-cost choice carries its reason
+- **WHEN** the plan lists a model that costs more than a cheaper capable allowed model, or has unknown price
+- **THEN** the plan includes a brief task-specific capability reason for that choice
 
 ### Requirement: Person-controlled mode entries
 The system MUST provide one composer chip and one `/orchestrator-mode` command to turn the mode on or off for a session that can hold it. The chip MUST be present only while the open room is such a session.
