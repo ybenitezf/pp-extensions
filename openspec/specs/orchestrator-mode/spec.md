@@ -68,7 +68,7 @@ A subagent conversation MUST stay out of orchestrator mode. Its prompt MUST NOT 
 - **THEN** the gate does not filter the call
 
 ### Requirement: Orchestrator mode prompt
-The system MUST include the orchestrator-mode prompt section only while the mode is on. The section MUST direct the orchestrator to read and delegate, and never change files itself. The section MUST direct the orchestrator to omit the `tools` argument from every `subagent` call. Each brief MUST state whether the child may change files and which paths it may touch.
+The system MUST include the orchestrator-mode prompt section only while the mode is on. The section MUST direct the orchestrator to read and delegate, and never change files itself. It MUST direct the orchestrator to set an explicit, task-specific `tools` grant on every subagent spawn, including read-only tasks. Each brief MUST state whether the child may change files and which paths it may touch. The section MUST preserve the host failure rule: retry a task-level failure at most once on the same model, but stop and report a model or provider failure.
 
 #### Scenario: Prompt section is enabled
 - **WHEN** the conversation has orchestrator mode on
@@ -79,12 +79,24 @@ The system MUST include the orchestrator-mode prompt section only while the mode
 - **THEN** its prompt does not include the orchestrator-mode section
 
 #### Scenario: Subagent calls omit the tools argument
-- **WHEN** the orchestrator-mode prompt section directs the orchestrator to delegate work
-- **THEN** it omits the `tools` argument from every `subagent` call
+- **WHEN** the orchestrator calls the subagent tool with `send`, `stop`, or `status`
+- **THEN** it omits the `tools` argument because the argument applies only to `spawn`
+
+#### Scenario: Every spawn has an explicit task grant
+- **WHEN** the orchestrator spawns a child for any task, including a read-only task
+- **THEN** it supplies an explicit grant containing only the tools needed for that task
 
 #### Scenario: Brief keeps file-change limits
 - **WHEN** the orchestrator prepares a brief for a child
 - **THEN** the brief states whether the child may change files and which paths it may touch
+
+#### Scenario: Task-level failure gets at most one corrected retry
+- **WHEN** a child has a task-level failure that is not caused by its model or provider
+- **THEN** the orchestrator may correct the brief and retry once on the same model
+
+#### Scenario: Model or provider failure is reported
+- **WHEN** a child fails because of its model or provider
+- **THEN** the orchestrator stops and reports the failure without retrying the work on another model
 
 ### Requirement: Simplified Technical English for delegated communication
 While orchestrator mode is on, the `orchestrator_mode` prompt section MUST tell the orchestrator to write each brief to a subagent in ASD-STE100 and ask for the report in the same style. The section MUST NOT restate Pi Pocket's own Simplified Technical English rules or replace the core `subagents` or `guidelines` sections. Simplified Technical English applies only to text between agents. The orchestrator MUST answer the person in normal English and reduce the reports into that answer.
@@ -156,11 +168,19 @@ While orchestrator mode is on, the system MUST NOT change the `model`, `tools`, 
 - **THEN** the module leaves `model` absent
 
 ### Requirement: Delegated child tool grant
-While orchestrator mode is on, the system MUST allow the orchestrator to grant a child a tool set wider than the orchestrator's allowlist.
+While orchestrator mode is on, the orchestrator MUST be able to grant a child tools beyond the mode's allowlist. Each spawn MUST include only tools needed for that task, and the grant MUST be limited to tools available to the parent. If later work needs a different grant, the orchestrator MUST spawn a new child because `send` cannot change an existing child's grant.
 
 #### Scenario: A child receives a wider tool grant
-- **WHEN** the orchestrator supplies a tool grant wider than its allowlist to a `subagent` call
-- **THEN** the built-in tool gives the child the supplied tool set
+- **WHEN** the orchestrator supplies a task-specific grant wider than the mode's allowlist
+- **THEN** the built-in tool gives the child the supplied tools, if they are available to the parent
+
+#### Scenario: A read-only task receives an explicit grant
+- **WHEN** the orchestrator spawns a child for a read-only task that needs only `read`
+- **THEN** it explicitly grants `read` and does not omit the `tools` argument
+
+#### Scenario: A later task needs a different grant
+- **WHEN** a later task for an existing child needs a different tool grant
+- **THEN** the orchestrator spawns a new child with the needed grant instead of using `send` to change the grant
 
 ### Requirement: Cost-aware subagent model selection
 While orchestrator mode is on, the orchestrator-mode prompt section MUST direct the orchestrator to prefer the lowest-cost owner-allowed model capable of a delegated task. It MUST select a higher-cost model only for a task-specific capability reason. It MUST treat unknown price as unknown, not cheap, and choose such a model only when its capabilities justify the uncertainty. It MUST NOT select outside the owner's allowlist or invent a cheaper alternative when none is available.
