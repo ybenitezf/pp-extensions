@@ -56,7 +56,7 @@ function rememberSubagentConversation(conversationId: number): void {
     subagentConversationIds.add(conversationId);
 }
 
-// The prefix is the text that Pi Pocket writes in /app/src/server/extensions/subagents.ts when it makes a child.
+// The prefix is the text that Pi Pocket writes in src/server/extensions/subagents.ts of the installed pi-pocket npm package when it makes a child.
 function isSubagentConversation(
     conversationId: number,
     agent: { readonly instructions?: string } | undefined,
