@@ -40,9 +40,11 @@ index.entries.json            the draft list of gallery entries
 
 - Do not commit the copies in the drop-in folder, and do not commit `node_modules`.
 - Do not delete a file that another person added. Ask first.
-- Do not change files in `/app`, which belongs to Pi Pocket.
+- Do not change the installed app itself: the pi-pocket npm package (find it with `npm root -g`), which owns its
+  source and its docs.
 - Read [Adding an extension](docs/adding-an-extension.md) before you add a module. Read the Pi Pocket documentation in
-  `/app/docs/extensions/` before you use a part of the extension API for the first time.
+  `docs/extensions/` of the installed pi-pocket npm package before you use a part of the extension API for the first
+  time.
 
 ## Commits
 

@@ -93,12 +93,14 @@ The panel SHALL never stop updating without a message to the person.
 #### Scenario: The module reloads and the server restarts
 
 - **WHEN** the module reloads or Pi Pocket restarts
-- **THEN** the panel shows "session ended", and the last screen from `/data/pty/` stays readable
+- **THEN** the panel shows "session ended", and the last screen from the `pty` folder of Pi Pocket's data folder
+  stays readable
 
 ### Requirement: The module cleans up its shell and keeps a scrollback file
 
-The module SHALL write the scrollback of the session to a file under `/data/pty/`. The module SHALL kill its child
-process in `web.onDispose`. The module SHALL NOT try to reattach to a shell that a reload killed.
+The module SHALL write the scrollback of the session to a file under the `pty` folder of Pi Pocket's data folder.
+The module SHALL kill its child process in `web.onDispose`. The module SHALL NOT try to reattach to a shell that a
+reload killed.
 
 #### Scenario: The module disposes
 
