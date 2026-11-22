@@ -29,9 +29,55 @@ const OrchestratorModeDoc = defineDoc<ModeState>({
     checkpointWhen: () => false,
 });
 
-// The read path carries the default: a conversation with no stored state is in the mode (design D1).
-function isOnByState(state: ModeState | undefined): boolean {
-    return state?.on !== false;
+// The web instance of this module, set while it loads. The sections, wraps, and hooks are made at module level,
+// before createOrchestratorMode runs, so they read the owner setting through this reference.
+let currentWeb: Web | undefined;
+
+// The owner setting that decides the mode of a conversation that stores no state. A host without the settings API
+// keeps the current behavior: the mode is on.
+function defaultOn(): boolean {
+    const web = currentWeb;
+    if (web === undefined || typeof web.setting !== "function") {
+        return true;
+    }
+
+    // Only a boolean false turns the mode off. A missing value or a value of another type falls back to on.
+    const value = web.setting("default_on");
+    return typeof value === "boolean" ? value : true;
+}
+
+// The one owner setting of this module. The host accepts only letters, digits, and underscore in a setting name, so
+// the name of the setting is "default_on".
+function declareDefaultOnSetting(web: Web): void {
+    const field = {
+        label: "Orchestrator mode on by default",
+        description: "Orchestrator mode is on in a conversation that stores no mode state.",
+        type: "boolean" as const,
+        default: true,
+    };
+
+    web.settings([{ ...field, name: "default_on" }]);
+}
+
+// The effective state of a conversation: its stored state when it has one, and the owner setting when it has none.
+function isOn(state: ModeState | undefined): boolean {
+    if (state === undefined) {
+        return defaultOn();
+    }
+
+    return state.on;
+}
+
+// A transaction gives the document's initial value when the conversation stores no state. A write always records the
+// actor and the time, so a stored state never equals that initial value.
+function storesNoState(state: ModeState): boolean {
+    const initial = OrchestratorModeDoc.definition.initial();
+    return (
+        state.on === initial.on &&
+        state.at === initial.at &&
+        state.by.id === initial.by.id &&
+        state.by.name === initial.by.name
+    );
 }
 
 const SUBAGENT_INSTRUCTIONS_PREFIX = 'You are the subagent "';
@@ -200,7 +246,7 @@ const orchestratorSection = section("orchestrator_mode", async (input, context) 
     }
 
     const state = await input.read.snapshot(OrchestratorModeDoc, input.conversationId, context);
-    return isOnByState(state) ? ORCHESTRATOR_PROMPT : undefined;
+    return isOn(state) ? ORCHESTRATOR_PROMPT : undefined;
 });
 
 function stripBlockedDeferredTools(text: string): string {
@@ -262,7 +308,7 @@ function filteredOfferSection(key: string, strip: (text: string) => string) {
             }
 
             const state = await input.read.snapshot(OrchestratorModeDoc, input.conversationId, context);
-            if (!isOnByState(state)) {
+            if (!isOn(state)) {
                 return text;
             }
 
@@ -282,7 +328,9 @@ async function toggleMode(
 ): Promise<ModeState> {
     return await commit(async (tx) => {
         const state = await tx.doc(OrchestratorModeDoc, conversationId);
-        state.on = !state.on;
+        // A conversation that stores no state follows the owner setting, so the first press inverts that value.
+        const effective = storesNoState(state) ? defaultOn() : state.on;
+        state.on = !effective;
         state.by = { id: actor.id, name: actor.name };
         state.at = new Date().toISOString();
         return { on: state.on, by: state.by, at: state.at };
@@ -295,7 +343,7 @@ function publishChange(web: Web, conversationId: number): void {
 
 async function readMode(request: ConversationWebRequest): Promise<{ on: boolean }> {
     const state = await request.snapshot(OrchestratorModeDoc, request.conversation.id, request.context);
-    return { on: isOnByState(state) };
+    return { on: isOn(state) };
 }
 
 async function toggleFromRoute(request: ConversationWebRequest, web: Web): Promise<{ on: boolean }> {
@@ -337,7 +385,7 @@ const modeGate = hook(ToolTask, {
             return undefined;
         }
 
-        if (!isOnByState(await api.snapshot(OrchestratorModeDoc, api.conversationId, context))) {
+        if (!isOn(await api.snapshot(OrchestratorModeDoc, api.conversationId, context))) {
             return undefined;
         }
 
@@ -368,6 +416,14 @@ const modeGate = hook(ToolTask, {
 });
 
 export default function createOrchestratorMode(host: Host, web: Web) {
+    // The sections, wraps, and hooks read the owner setting through this reference.
+    currentWeb = web;
+
+    // web.settings is experimental since Pi Pocket 0.22.0, so an older host loads the module without the setting.
+    if (typeof web.settings === "function") {
+        declareDefaultOnSetting(web);
+    }
+
     // host.on is experimental since Pi Pocket 0.22.0, so the module works without it: the instructions prefix answers
     // alone when the listener is absent.
     if (typeof host.on === "function") {
