@@ -159,6 +159,7 @@ const BUILT_IN_TOOL_NAMES = new Set([
     "design_preview",
     "design_export",
     "design_system",
+    "relay_reply",
 ]);
 
 function isBlockedByMode(toolName: string): boolean {
