@@ -11,8 +11,9 @@
  * event, plus a snapshot of the last 64 KB when a panel mounts. Each frame and snapshot carries a sequence number, so a
  * panel discards a frame that it already has, and a browser reload shows the last screen and adds no duplicate text.
  *
- * What it writes: the pty output as text, appended as each chunk arrives, to `/data/pty/<conversationId>.log`. The
- * folder is the only place outside Pi Pocket's own files that this module writes.
+ * What it writes: the pty output as text, appended as each chunk arrives, to `<conversationId>.log` in the `pty`
+ * folder of Pi Pocket's data folder (`host.dataDir`). The folder is the only place outside Pi Pocket's own files
+ * that this module writes.
  *
  * What it does not do: it adds no tool and no command, so no terminal output can reach Pi's prompt or a tool result. The
  * shell is a child of this module, so a module reload or a server restart kills it: durability is Level 0, and a panel
@@ -40,9 +41,6 @@ const browserEntry = extensionName;
 // The Perl helper, beside the module in the drop-in folder, and the interpreter that runs it.
 const helperFile = "pty-helper.pl";
 const helperRunner = "/usr/bin/perl";
-
-// The scrollback file of each session: text only, 1 file each conversation.
-const logFolder = "/data/pty";
 
 // The 2 routes. Pi Pocket puts a module's routes under `/api/x/<module>/`, so the addresses are
 // `GET /pty-terminal/:conversation/state` and `POST /pty-terminal/:conversation/input` in the module's own space, and
@@ -165,8 +163,12 @@ interface Terminal {
     /** The shells that are starting now, so 2 panels that open together share 1 child. */
     readonly starting: Map<ConversationId, Promise<Session>>;
     readonly sent: SentEvent[];
+    /** The folder that keeps the scrollback file of each session: the `pty` folder of the data folder. */
+    readonly logFolder: string;
     /** True once this version of the module goes: no shell starts after it. */
     closed: boolean;
+    /** The making of the log folder, 1 time for this version of the module, or `null` before it starts. */
+    logFolderTrouble: Promise<string | null> | null;
 }
 
 // The number of each signal, for the status of a shell that a signal killed. It is built 1 time.
@@ -267,30 +269,27 @@ function cutForFrame(text: string, limitBytes: number): { readonly head: string;
     return { head: text.slice(0, index), rest: text.slice(index) };
 }
 
-// The log folder is made 1 time for the whole version of the module, and its trouble is kept.
-let logFolderTrouble: Promise<string | null> | null = null;
-
-/** Makes `/data/pty/` when it is not there. The answer is the words of a failure, or `null` when it is ready. */
-function prepareLogFolder(): Promise<string | null> {
-    if (logFolderTrouble === null) {
-        logFolderTrouble = mkdir(logFolder, { recursive: true }).then(
+/** Makes the log folder when it is not there. The answer is the words of a failure, or `null` when it is ready. */
+function prepareLogFolder(terminal: Terminal): Promise<string | null> {
+    if (terminal.logFolderTrouble === null) {
+        terminal.logFolderTrouble = mkdir(terminal.logFolder, { recursive: true }).then(
             () => null,
             (error: unknown) => describe(error),
         );
     }
-    return logFolderTrouble;
+    return terminal.logFolderTrouble;
 }
 
 /** Appends 1 chunk of pty output to the scrollback file, in the order that the shell wrote it. */
 function appendToLog(terminal: Terminal, session: Session, text: string): void {
     session.writing = session.writing.then(async () => {
-        const trouble = await prepareLogFolder();
+        const trouble = await prepareLogFolder(terminal);
         if (trouble !== null) {
             if (!session.warnedLog) {
                 session.warnedLog = true;
                 terminal.host.notice(
                     "warning",
-                    `${extensionName} cannot make the folder ${logFolder}, so the scrollback is not kept: ${trouble}`,
+                    `${extensionName} cannot make the folder ${terminal.logFolder}, so the scrollback is not kept: ${trouble}`,
                     session.conversationId,
                 );
             }
@@ -516,7 +515,7 @@ async function startSession(terminal: Terminal, conversationId: ConversationId):
 
     const session: Session = {
         conversationId,
-        logPath: join(logFolder, `${String(conversationId)}.log`),
+        logPath: join(terminal.logFolder, `${String(conversationId)}.log`),
         child,
         input,
         control,
@@ -728,7 +727,16 @@ export default function createExtension(host: Host, web: Web): ReturnType<typeof
         return defineExtension({ name: extensionName });
     }
 
-    const terminal: Terminal = { host, web, sessions: new Map(), starting: new Map(), sent: [], closed: false };
+    const terminal: Terminal = {
+        host,
+        web,
+        sessions: new Map(),
+        starting: new Map(),
+        sent: [],
+        logFolder: join(host.dataDir, "pty"),
+        logFolderTrouble: null,
+        closed: false,
+    };
 
     web.client(browserEntry);
 
