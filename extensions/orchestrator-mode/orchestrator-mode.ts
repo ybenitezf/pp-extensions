@@ -68,16 +68,11 @@ function isOn(state: ModeState | undefined): boolean {
     return state.on;
 }
 
-// A transaction gives the document's initial value when the conversation stores no state. A write always records the
-// actor and the time, so a stored state never equals that initial value.
-function storesNoState(state: ModeState): boolean {
-    const initial = OrchestratorModeDoc.definition.initial();
-    return (
-        state.on === initial.on &&
-        state.at === initial.at &&
-        state.by.id === initial.by.id &&
-        state.by.name === initial.by.name
-    );
+// The record marker: the time field is empty only in the document's initial value. Every write fills it, so a stored
+// record has a non-empty time and a conversation that stores no record has an empty time. The marker tells a captured
+// record from the initial value, which both hold an empty actor and can hold the same on value.
+function storesNoRecord(state: ModeState): boolean {
+    return state.at === "";
 }
 
 const SUBAGENT_INSTRUCTIONS_PREFIX = 'You are the subagent "';
@@ -328,8 +323,9 @@ async function toggleMode(
 ): Promise<ModeState> {
     return await commit(async (tx) => {
         const state = await tx.doc(OrchestratorModeDoc, conversationId);
-        // A conversation that stores no state follows the owner setting, so the first press inverts that value.
-        const effective = storesNoState(state) ? defaultOn() : state.on;
+        // A conversation that stores no record follows the owner setting, so the first press captures that value and
+        // inverts it. A conversation that stores a record inverts its stored value, not the current setting.
+        const effective = storesNoRecord(state) ? defaultOn() : state.on;
         state.on = !effective;
         state.by = { id: actor.id, name: actor.name };
         state.at = new Date().toISOString();
@@ -341,9 +337,35 @@ function publishChange(web: Web, conversationId: number): void {
     web.send("changed", { conversationId });
 }
 
+// The GET route is a read path that can write, so it captures the owner setting in a conversation that stores no
+// record. The capture stores the current setting, leaves the actor empty because no person made a choice, and writes
+// the time of the capture, so every record carries the marker and a later read and a later toggle can tell it from a
+// conversation that stores no record. A second request finds the record that the first one stored and keeps it.
 async function readMode(request: ConversationWebRequest): Promise<{ on: boolean }> {
-    const state = await request.snapshot(OrchestratorModeDoc, request.conversation.id, request.context);
-    return { on: isOn(state) };
+    const conversationId = request.conversation.id;
+    const state = await request.snapshot(OrchestratorModeDoc, conversationId, request.context);
+    if (state !== undefined) {
+        return { on: state.on };
+    }
+
+    try {
+        const captured = await request.commit(async (tx) => {
+            const doc = await tx.doc(OrchestratorModeDoc, conversationId);
+            // Another request captured first, so the stored record stays and its value is the answer.
+            if (!storesNoRecord(doc)) {
+                return doc.on;
+            }
+
+            doc.on = defaultOn();
+            doc.at = new Date().toISOString();
+            return doc.on;
+        });
+
+        return { on: captured };
+    } catch {
+        // A refused commit stores no record. The route still answers, with the current setting.
+        return { on: defaultOn() };
+    }
 }
 
 async function toggleFromRoute(request: ConversationWebRequest, web: Web): Promise<{ on: boolean }> {
