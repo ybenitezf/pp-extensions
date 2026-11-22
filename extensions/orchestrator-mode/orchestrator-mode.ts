@@ -29,9 +29,50 @@ const OrchestratorModeDoc = defineDoc<ModeState>({
     checkpointWhen: () => false,
 });
 
-// The read path carries the default: a conversation with no stored state is in the mode (design D1).
-function isOnByState(state: ModeState | undefined): boolean {
-    return state?.on !== false;
+// The web instance of this module, set while it loads. The sections, wraps, and hooks are made at module level,
+// before createOrchestratorMode runs, so they read the owner setting through this reference.
+let currentWeb: Web | undefined;
+
+// The owner setting that decides the mode of a conversation that stores no state. A host without the settings API
+// keeps the current behavior: the mode is on.
+function defaultOn(): boolean {
+    const web = currentWeb;
+    if (web === undefined || typeof web.setting !== "function") {
+        return true;
+    }
+
+    // Only a boolean false turns the mode off. A missing value or a value of another type falls back to on.
+    const value = web.setting("default_on");
+    return typeof value === "boolean" ? value : true;
+}
+
+// The one owner setting of this module. The host accepts only letters, digits, and underscore in a setting name, so
+// the name of the setting is "default_on".
+function declareDefaultOnSetting(web: Web): void {
+    const field = {
+        label: "Orchestrator mode on by default",
+        description: "Orchestrator mode is on in a conversation that stores no mode state.",
+        type: "boolean" as const,
+        default: true,
+    };
+
+    web.settings([{ ...field, name: "default_on" }]);
+}
+
+// The effective state of a conversation: its stored state when it has one, and the owner setting when it has none.
+function isOn(state: ModeState | undefined): boolean {
+    if (state === undefined) {
+        return defaultOn();
+    }
+
+    return state.on;
+}
+
+// The record marker: the time field is empty only in the document's initial value. Every write fills it, so a stored
+// record has a non-empty time and a conversation that stores no record has an empty time. The marker tells a captured
+// record from the initial value, which both hold an empty actor and can hold the same on value.
+function storesNoRecord(state: ModeState): boolean {
+    return state.at === "";
 }
 
 const SUBAGENT_INSTRUCTIONS_PREFIX = 'You are the subagent "';
@@ -188,7 +229,7 @@ Plan the work as a graph of steps with dependencies before you delegate anything
 
 Pick a model for each task with care. Compare the known per-million input price and output price of each owner-allowed model against the expected shape of the task. Do not invent a cost formula. Prefer the lowest-cost owner-allowed model that can do the task. Choose a higher-cost model only when the task needs a specific capability that only that model provides, and name that capability as the reason. A generic reason such as "better quality" is not allowed. A model with no known price has an unknown price, not a low price. Choose an unknown-price model only when its capabilities justify the uncertainty. Stay inside the owner's allowlist, and never invent an unallowed model. Before dispatch, the visible DAG/wave plan lists the effective provider/modelId for every spawn. When a spawn omits model, the plan names the effective current-session model for it. The plan gives one brief task-specific capability reason for every higher-cost or unknown-price choice. An ordinary lowest-cost known-price capable choice needs no reason.
 
-Each brief gives the role, the steps in order, the exact paths and names, the limits, and how you will judge the result. Write each brief to a subagent in ASD-STE100 and ask for its report in the same style. Check each result yourself with read. When a child claims a test or command result you cannot repeat, spawn one independent verifier, and never verify a verifier. If a child has a task-level failure that is not caused by its model or provider, read the error, correct the brief, and retry once on the same model. Spawn a new child if that retry needs a different tool grant. If a child fails because of its model or provider, stop and tell the person what failed; do not retry the work on another model. Continue a partial result instead of restarting it. Carry decisions and findings into later briefs; do not pass a bare path and expect the child to know why. Ask each child for paths, short excerpts, and findings, never a file dump.
+Each brief gives the role, the steps in order, the exact paths and names, the limits, and how you will judge the result. Write each brief to a subagent in ASD-STE100 and ask for its report in the same style. Check each result yourself with read. When a child claims a test or command result that you cannot repeat yourself, spawn exactly one independent verifier for that claim. When you can repeat the result yourself, do not spawn an independent verifier. Run the verifier on a model different from the child's model. When the owner's allowlist has more than one model and an allowed model from a different provider is available, prefer that provider. When the allowlist has only one model, still run the verifier on that model and disclose the weaker check in the dispatch line, such as "verifier on <model> (only allowed model)". Give the verifier a clean-room brief: the brief states the task and how to check it, and it neither states nor implies the child's claimed result. Never verify a verifier. If a child has a task-level failure that is not caused by its model or provider, read the error, correct the brief, and retry once on the same model. Spawn a new child if that retry needs a different tool grant. If a child fails because of its model or provider, stop and tell the person what failed; do not retry the work on another model. Continue a partial result instead of restarting it. Carry decisions and findings into later briefs; do not pass a bare path and expect the child to know why. Ask each child for paths, short excerpts, and findings, never a file dump.
 
 Answer the person in normal English, reducing the reports into a clear answer and naming the changed files. Never say a step passed when it was not run.
 
@@ -200,7 +241,7 @@ const orchestratorSection = section("orchestrator_mode", async (input, context) 
     }
 
     const state = await input.read.snapshot(OrchestratorModeDoc, input.conversationId, context);
-    return isOnByState(state) ? ORCHESTRATOR_PROMPT : undefined;
+    return isOn(state) ? ORCHESTRATOR_PROMPT : undefined;
 });
 
 function stripBlockedDeferredTools(text: string): string {
@@ -262,7 +303,7 @@ function filteredOfferSection(key: string, strip: (text: string) => string) {
             }
 
             const state = await input.read.snapshot(OrchestratorModeDoc, input.conversationId, context);
-            if (!isOnByState(state)) {
+            if (!isOn(state)) {
                 return text;
             }
 
@@ -282,7 +323,10 @@ async function toggleMode(
 ): Promise<ModeState> {
     return await commit(async (tx) => {
         const state = await tx.doc(OrchestratorModeDoc, conversationId);
-        state.on = !state.on;
+        // A conversation that stores no record follows the owner setting, so the first press captures that value and
+        // inverts it. A conversation that stores a record inverts its stored value, not the current setting.
+        const effective = storesNoRecord(state) ? defaultOn() : state.on;
+        state.on = !effective;
         state.by = { id: actor.id, name: actor.name };
         state.at = new Date().toISOString();
         return { on: state.on, by: state.by, at: state.at };
@@ -293,9 +337,35 @@ function publishChange(web: Web, conversationId: number): void {
     web.send("changed", { conversationId });
 }
 
+// The GET route is a read path that can write, so it captures the owner setting in a conversation that stores no
+// record. The capture stores the current setting, leaves the actor empty because no person made a choice, and writes
+// the time of the capture, so every record carries the marker and a later read and a later toggle can tell it from a
+// conversation that stores no record. A second request finds the record that the first one stored and keeps it.
 async function readMode(request: ConversationWebRequest): Promise<{ on: boolean }> {
-    const state = await request.snapshot(OrchestratorModeDoc, request.conversation.id, request.context);
-    return { on: isOnByState(state) };
+    const conversationId = request.conversation.id;
+    const state = await request.snapshot(OrchestratorModeDoc, conversationId, request.context);
+    if (state !== undefined) {
+        return { on: state.on };
+    }
+
+    try {
+        const captured = await request.commit(async (tx) => {
+            const doc = await tx.doc(OrchestratorModeDoc, conversationId);
+            // Another request captured first, so the stored record stays and its value is the answer.
+            if (!storesNoRecord(doc)) {
+                return doc.on;
+            }
+
+            doc.on = defaultOn();
+            doc.at = new Date().toISOString();
+            return doc.on;
+        });
+
+        return { on: captured };
+    } catch {
+        // A refused commit stores no record. The route still answers, with the current setting.
+        return { on: defaultOn() };
+    }
 }
 
 async function toggleFromRoute(request: ConversationWebRequest, web: Web): Promise<{ on: boolean }> {
@@ -337,7 +407,7 @@ const modeGate = hook(ToolTask, {
             return undefined;
         }
 
-        if (!isOnByState(await api.snapshot(OrchestratorModeDoc, api.conversationId, context))) {
+        if (!isOn(await api.snapshot(OrchestratorModeDoc, api.conversationId, context))) {
             return undefined;
         }
 
@@ -368,6 +438,14 @@ const modeGate = hook(ToolTask, {
 });
 
 export default function createOrchestratorMode(host: Host, web: Web) {
+    // The sections, wraps, and hooks read the owner setting through this reference.
+    currentWeb = web;
+
+    // web.settings is experimental since Pi Pocket 0.22.0, so an older host loads the module without the setting.
+    if (typeof web.settings === "function") {
+        declareDefaultOnSetting(web);
+    }
+
     // host.on is experimental since Pi Pocket 0.22.0, so the module works without it: the instructions prefix answers
     // alone when the listener is absent.
     if (typeof host.on === "function") {

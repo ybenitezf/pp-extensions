@@ -7,7 +7,7 @@ Provides a conversation mode for read-only orchestration. It lets a person deleg
 ## Requirements
 
 ### Requirement: Conversation-scoped mode state
-The system MUST let a person turn orchestrator mode on and off for the current conversation. A change MUST record whether it is on, who changed it, and when. A stored state MUST survive reloads.
+The system MUST let a person turn orchestrator mode on and off for the current conversation. A change MUST record whether it is on, who changed it, and when. A stored state MUST survive reloads. When no state is stored, a toggle MUST capture the current `default_on` value and invert it.
 
 #### Scenario: Turn mode on
 - **WHEN** a person turns orchestrator mode on
@@ -22,31 +22,54 @@ The system MUST let a person turn orchestrator mode on and off for the current c
 - **THEN** orchestrator mode remains on
 
 #### Scenario: First press in a session with no stored state
-- **WHEN** a person turns orchestrator mode off in a conversation that stores no state
-- **THEN** the conversation records the off state, actor, and time in 1 commit, and the mode is off after it
+- **WHEN** a person toggles orchestrator mode in a conversation that stores no state
+- **THEN** the conversation records the inverse of the captured `default_on` value, actor, and time in 1 commit, and the mode matches that inverse
+
+#### Scenario: A toggle inverts the captured value
+- **WHEN** a person toggles orchestrator mode in a conversation that captured a value, and the owner changed `default_on` after that capture
+- **THEN** the conversation records the inverse of the captured value, actor, and time
 
 ### Requirement: Mode is on by default
-A conversation MUST be in orchestrator mode while it stores no mode state, and MUST NOT be in the mode when the stored state says off. The default MUST NOT need a written document, so a conversation that nobody touched is in the mode without a write.
+A conversation with no mode state MUST capture the current `default_on` value at its first mode resolution that can write, which is its first chip read or first toggle. The read-only paths, the prompt and tool gate, MUST resolve the current setting only while the conversation stores no record. It MUST keep that captured value until a toggle replaces it, and it MUST survive reloads and restarts. The default MUST be true. A conversation that never resolved the mode follows the current setting.
 
 #### Scenario: A conversation that nobody touched
-- **WHEN** a person opens or messages a session that stores no mode state
-- **THEN** orchestrator mode is on
+- **WHEN** a person opens a session that stores no mode state
+- **THEN** the chip read captures the current `default_on` value and the session keeps it
 
 #### Scenario: The composer chip of a session that stores no state
-- **WHEN** a person opens a session that stores no mode state
-- **THEN** the composer chip reads On, and 1 press of the chip turns the mode off
+- **WHEN** a person opens a session that stores no state
+- **THEN** the chip read captures the current `default_on` value, and 1 press toggles that captured value
 
 #### Scenario: A session that exists before the change
-- **WHEN** the module loads with the default and a session from an earlier version stores no state
-- **THEN** that session is in orchestrator mode at its next request
+- **WHEN** the module loads with a configured default and a session from an earlier version stores no state
+- **THEN** that session captures the configured default at its next mode resolution
 
 #### Scenario: A stored off survives a restart
 - **WHEN** the server restarts after a person turned the mode off in a session
 - **THEN** that session is not in orchestrator mode
 
+#### Scenario: A captured value survives a change of the setting and a restart
+- **WHEN** the owner changes `default_on` and the server restarts after a session captured a value
+- **THEN** that session keeps its captured value
+
 #### Scenario: A fork of a session that stores off
-- **WHEN** a person forks a session whose stored state says off
-- **THEN** the fork is in orchestrator mode, because a fork starts from the document initial value
+- **WHEN** a person forks a session and the fork stores no mode state
+- **THEN** the fork captures the current `default_on` value at its own first use, whether or not the source session stores off
+
+### Requirement: Owner-controlled default mode setting
+The module MUST declare one owner setting named `default_on` as a boolean with a label and default value `true`. Only the owner can change it in Menu → Extensions. When the settings API is absent, the module MUST preserve the current on-by-default behavior.
+
+#### Scenario: The setting is available to the owner
+- **WHEN** the module runs on a host with the settings API
+- **THEN** Menu → Extensions shows one boolean `default_on` setting for the module with default value `true`
+
+#### Scenario: The owner changes the default
+- **WHEN** the owner changes `default_on`
+- **THEN** a conversation that never resolved the mode uses the new setting value, while a conversation that captured a value keeps that captured value
+
+#### Scenario: The settings API is absent
+- **WHEN** the module runs on a host without the settings API
+- **THEN** it does not require the setting and a conversation with no stored state remains in orchestrator mode
 
 ### Requirement: Subagent conversations never enter the mode
 A subagent conversation MUST stay out of orchestrator mode. Its prompt MUST NOT hold the orchestrator section, the gate MUST NOT filter its tool calls, and the deferred and codemode offers MUST read as the source sections render them. A subagent MUST keep the tools that its parent granted.
@@ -382,3 +405,46 @@ The orchestrator MUST use replanning only to fulfill the original request. If a 
 #### Scenario: A re-plan would change scope
 - **WHEN** a candidate update would alter or expand the requested outcome
 - **THEN** the orchestrator does not dispatch the changed work and asks the person for a decision
+
+### Requirement: Independent verifier model selection
+The orchestrator MUST run an independent verifier on a model different from the child model. When the owner's allowlist offers more than one model, it MUST prefer a model from a different provider.
+
+#### Scenario: Verifier uses a different model
+- **WHEN** a child claims a result that requires independent verification and the allowlist has another model
+- **THEN** the orchestrator dispatches the verifier on a model different from the child's model
+
+#### Scenario: Verifier prefers a different provider
+- **WHEN** the allowlist has more than one model and at least one allowed model uses a provider different from the child's model
+- **THEN** the orchestrator prefers an allowed verifier model from that different provider
+
+### Requirement: Single-model verifier fallback
+The orchestrator MUST still spawn an independent verifier when the owner's allowlist contains only one model, and MUST disclose the weaker check in the verifier dispatch line.
+
+#### Scenario: Only one model is allowed
+- **WHEN** a child claims a result that requires independent verification and only one model is allowed
+- **THEN** the orchestrator runs the verifier on that model and includes a disclosure such as `verifier on <model> (only allowed model)`
+
+### Requirement: Clean-room verifier brief
+The independent verifier brief MUST provide the task and how to check it, and MUST NOT provide the child's claimed result.
+
+#### Scenario: Verifier receives an unleading brief
+- **WHEN** the orchestrator dispatches an independent verifier for a claimed test or command result
+- **THEN** the brief tells the verifier what to run and how to check it without stating or implying the child's claimed outcome
+
+### Requirement: Unrepeatable result verification trigger
+The orchestrator MUST spawn one independent verifier only when a child claims a test or command result that the orchestrator cannot repeat itself.
+
+#### Scenario: The orchestrator cannot repeat a claimed result
+- **WHEN** a child claims a test or command result that the orchestrator cannot repeat
+- **THEN** the orchestrator spawns one independent verifier
+
+#### Scenario: The orchestrator can repeat the result
+- **WHEN** a child claims a test or command result that the orchestrator can repeat itself
+- **THEN** the orchestrator does not spawn an independent verifier for that claim
+
+### Requirement: Verifiers are not verified
+The orchestrator MUST NOT spawn a verifier to verify a verifier's claimed result.
+
+#### Scenario: A verifier reports a result
+- **WHEN** an independent verifier claims a test or command result
+- **THEN** the orchestrator does not spawn another verifier for that result
