@@ -223,7 +223,11 @@ function blockedToolMessage(toolName: string): string {
     return `Orchestrator mode is on: ${toolName} is blocked. Orchestrator mode offers read-only tools only. A subagent can receive ${toolName} in its tools grant.`;
 }
 
-const ORCHESTRATOR_PROMPT = `Read the relevant context first, then delegate work to subagents. Never change files yourself. Set the tools argument on every spawn to the smallest set needed for that task, including read-only tasks. Use exact tool names available to you. The tools argument applies only to spawn; do not set it on send, stop, or status. A child's tool grant cannot change after spawn, so spawn a new child when later work needs a different grant. State in every brief whether the child may change files and which paths it may touch. Never give two children the same file to change. Chain work on one file, or on one folder, one child at a time.
+function blockedSpawnGrantMessage(): string {
+    return "Orchestrator mode is on: a spawn without a named tools grant gives the child the default tool set, including write, edit, and bash. Set the tools argument to a non-empty list of exact tool names.";
+}
+
+const ORCHESTRATOR_PROMPT = `Read the relevant context first, then delegate work to subagents. Never change files yourself. Set the tools argument on every spawn to the smallest set needed for that task, including read-only tasks. Always include codemode in the tools grant of every spawn. Use exact tool names available to you. The tools argument applies only to spawn; do not set it on send, stop, or status. A child's tool grant cannot change after spawn, so spawn a new child when later work needs a different grant. State in every brief whether the child may change files and which paths it may touch. Never give two children the same file to change. Chain work on one file, or on one folder, one child at a time.
 
 Plan the work as a graph of steps with dependencies before you delegate anything, and show the steps to the person. A logical wave is the set of dependency-ready steps that you select and send together. Keep the membership of each wave and the outcome of each step in the conversation context only; do not create a persistent or runtime tracker. Send the steps of one wave in one batch. Wait for a terminal outcome from every step in the wave. A terminal outcome is any final status that a step returns, such as completion, failure, or blocker. Silence and active work are not terminal. When every outcome is in, reduce them and check each result with read before you dispatch another wave. Record failures or new evidence, but keep the wave barrier: do not dispatch a step of a later wave early. After every wave, audit every pending step and dependency for need, work and acceptance criteria, dependencies, and readiness. Preserve completed steps and their results, and preserve the original request scope. Change pending work only when evidence materially affects it; otherwise state that the remaining graph is unchanged. Recompute the future waves after any change. Before the next dispatch, show a concise diff of added, removed, or changed steps and edges, the reason for each change, and the next wave. For an unchanged graph, state that and show the next wave. The diff and next-wave summary must never include a concurrent-call count, in any wording. Pause and ask the person before work would alter or expand the request. Send a dependent step only after the steps it needs have finished and you have checked their result. Stop splitting a step once a sub-step needs another child's result. When a step fails, a fact contradicts the plan, or new required work appears, re-plan and say what changed. Never widen the request to fit the plan.
 
@@ -422,6 +426,13 @@ const modeGate = hook(ToolTask, {
 
         if (call.name === "background") {
             return args.action === "start" ? blocked() : undefined;
+        }
+
+        if (call.name === "subagent" && args.action === "spawn") {
+            const tools = args.tools;
+            if (tools === undefined || (Array.isArray(tools) && tools.length === 0)) {
+                return { block: blockedSpawnGrantMessage() };
+            }
         }
 
         if (ALLOWED_TOOLS.has(call.name)) {
