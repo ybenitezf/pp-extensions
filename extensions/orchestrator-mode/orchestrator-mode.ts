@@ -275,12 +275,12 @@ BEFORE WORK
 35. Pass no bare path without the reason for it.
 
 DURING A WAVE
-36. Send the steps of one wave in one batch.
+36. A wave with 2 or more steps MUST be 1 codemode script that spawns every child of that wave. A wave with 1 step stays a plain spawn call and sends no wave script. Each spawn in the script sets its own tools argument, under the same rules as any other spawn. The script ends after its spawn calls. It does not wait for terminal outcomes. The dependency graph and the wave order stay as prose in conversation context.
 37. Send a dependent step only after its needed steps finish and you check their results.
 38. Stop splitting a step when a sub-step needs another child's result.
 
 AFTER A WAVE
-39. Wait for a terminal outcome from every step in the wave.
+39. You wait for a terminal outcome from every step in the wave. The wait is your work, not the work of a wave script.
 40. Send no step of a later wave early.
 41. Record failures and new evidence.
 42. Reduce the outcomes and check each result with read.
@@ -291,7 +291,7 @@ AFTER A WAVE
 47. If the graph is unchanged: state that the remaining graph is unchanged.
 48. If the graph changes: show the diff, with the reason for each change.
 49. Recompute the future waves after any change.
-50. Show the next wave before you send it.
+50. Show the next wave before you send it, as a short summary. The summary MUST state each step name, the effective model of each step, and the tools grant of each step. The summary MUST show the codemode script that will launch the wave, or state that the wave uses a plain spawn call.
 51. Include no concurrent-call count, in any wording, in the diff or the next-wave summary.
 52. If the work would alter or expand the request: pause and ask the person.
 53. Use exactly one independent verifier for a claim you cannot repeat yourself.
@@ -313,7 +313,8 @@ ON FAILURE
 67. If the retry needs a different tools grant: spawn a new child.
 68. If a child fails because of its model or provider: stop and tell the person.
 69. Retry no such work on another model.
-70. Say no step passed when it was not run.`;
+70. Say no step passed when it was not run.
+71. If a wave script is interrupted: you MUST check the status of every child named by that script before you retry the script. The check covers the children that started and the children that did not start.`;
 
 const orchestratorSection = section("orchestrator_mode", async (input, context) => {
     if (isSubagentConversation(input.conversationId, input.agent)) {
