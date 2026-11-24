@@ -227,6 +227,13 @@ function blockedSpawnGrantMessage(): string {
     return "Orchestrator mode is on: a spawn without a named tools grant gives the child the default tool set, including write, edit, and bash. Set the tools argument to a non-empty list of exact tool names.";
 }
 
+// The state header line in front of the canonical body. The gate state decides the header, so each state names its
+// own gate, and the body below the header stays 1 text.
+const ORCHESTRATOR_PROMPT_HEADER_ON =
+    "STATE: orchestrator mode is on. The gate is on: blocked tools stay blocked.";
+const ORCHESTRATOR_PROMPT_HEADER_OFF =
+    "STATE: orchestrator mode is off. The gate is off: you hold write tools. Delegation stays the preferred style, not a necessity.";
+
 const ORCHESTRATOR_PROMPT = `TERMS
 - child: a subagent that spawn starts.
 - step: one unit of delegated work.
@@ -240,7 +247,7 @@ const ORCHESTRATOR_PROMPT = `TERMS
 BEFORE WORK
 1. Read the relevant context first.
 2. Delegate the work to children.
-3. Change no file yourself: you have read-only tools only.
+3. Change no file yourself: delegate every file change to a child.
 4. If a step needs another tool: add that tool to the child's tools grant.
 5. Plan a graph of steps and dependencies.
 6. Show the plan steps to the person.
@@ -320,13 +327,20 @@ ON FAILURE
 70. Say no step passed when it was not run.
 71. If a wave script ends with a partial wave, you MUST check the status of every child named by that script before you retry the script. A partial wave can come from an interruption, a guard block, a tool error, or any other abort. The check covers the children that started and the children that did not start.`;
 
+// The header of the active state, then the canonical body. The section renders in every conversation that can hold
+// the mode, whatever the state is, so a reader always finds the rules below the header.
+function orchestratorPrompt(state: ModeState | undefined): string {
+    const header = isOn(state) ? ORCHESTRATOR_PROMPT_HEADER_ON : ORCHESTRATOR_PROMPT_HEADER_OFF;
+    return `${header}\n${ORCHESTRATOR_PROMPT}`;
+}
+
 const orchestratorSection = section("orchestrator_mode", async (input, context) => {
     if (isSubagentConversation(input.conversationId, input.agent)) {
         return undefined;
     }
 
     const state = await input.read.snapshot(OrchestratorModeDoc, input.conversationId, context);
-    return isOn(state) ? ORCHESTRATOR_PROMPT : undefined;
+    return orchestratorPrompt(state);
 });
 
 function stripBlockedDeferredTools(text: string): string {

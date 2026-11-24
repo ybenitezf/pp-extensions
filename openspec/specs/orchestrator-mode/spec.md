@@ -91,15 +91,19 @@ A subagent conversation MUST stay out of orchestrator mode. Its prompt MUST NOT 
 - **THEN** the gate does not filter the call
 
 ### Requirement: Orchestrator mode prompt
-The system MUST include the orchestrator-mode prompt section only while the mode is on. The section MUST direct the orchestrator to read and delegate, and never change files itself. It MUST direct the orchestrator to set an explicit, task-specific `tools` grant on every subagent spawn, including read-only tasks, and to include `codemode` in that grant. Each brief MUST state whether the child may change files and which paths it may touch. The section MUST preserve the host failure rule: retry a task-level failure at most once on the same model, but stop and report a model or provider failure.
+The system MUST include the orchestrator-mode prompt section in every conversation that can hold the mode, whatever the mode state is, while the module is loaded. The section MUST begin with a state header that names the active state. With the mode on, the header MUST state that the gate is on and blocked tools stay blocked. With the mode off, the header MUST state that the gate is off, that the orchestrator holds write tools, and that delegation stays the preferred style, not a necessity. The body below the header MUST stay 1 canonical text for both states. Lines of the body whose claims hold only while the gate is on apply under the on-state header. The section MUST direct the orchestrator to read and delegate, and never change files itself. It MUST direct the orchestrator to set an explicit, task-specific `tools` grant on every subagent spawn, including read-only tasks, and to include `codemode` in that grant. Each brief MUST state whether the child may change files and which paths it may touch. The section MUST preserve the host failure rule: retry a task-level failure at most once on the same model, but stop and report a model or provider failure.
 
 #### Scenario: Prompt section is enabled
 - **WHEN** the conversation has orchestrator mode on
-- **THEN** its prompt includes the orchestrator-mode section
+- **THEN** its prompt includes the orchestrator-mode section, and the state header states that the gate is on and blocked tools stay blocked
 
 #### Scenario: Prompt section is disabled
 - **WHEN** the conversation has orchestrator mode off
-- **THEN** its prompt does not include the orchestrator-mode section
+- **THEN** its prompt includes the orchestrator-mode section, and the state header states that the gate is off, that the orchestrator holds write tools, and that delegation stays the preferred style
+
+#### Scenario: One canonical body
+- **WHEN** the section renders with the mode on or with the mode off
+- **THEN** the body below the state header is the same text
 
 #### Scenario: Subagent calls omit the tools argument
 - **WHEN** the orchestrator calls the subagent tool with `send`, `stop`, or `status`
