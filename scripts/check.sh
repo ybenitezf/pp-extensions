@@ -182,5 +182,22 @@ if [ "$checked" -eq 0 ]; then
     echo "check.sh: no module to check in $repo_root/extensions"
 fi
 
+# The mode gate's rules are quoted in the module. A rule that the module drops silently is a failure, so each
+# required string must still be there.
+mode_gate="$repo_root/extensions/orchestrator-mode/orchestrator-mode.ts"
+required_strings=(
+    '36. A wave with 2 or more steps MUST be 1 codemode script'
+    '36.2. Each spawn call in the script MUST be awaited'
+    '50. Show the next wave before you send it'
+    'MUST be the same script shown in the summary'
+    '71. If a wave script ends with a partial wave'
+)
+for required in "${required_strings[@]}"; do
+    if ! grep -Fq -- "$required" "$mode_gate"; then
+        echo "check.sh: error: $mode_gate is missing the string: $required" >&2
+        overall=1
+    fi
+done
+
 echo "check.sh: $checked module(s) checked, exit code $overall"
 exit "$overall"
